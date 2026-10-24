@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../app/theme.dart';
-import '../../widgets/common.dart';
+import '../clients/clients_tab.dart';
+import '../dashboard/dashboard_tab.dart';
 import '../invoices/invoices_tab.dart';
 import '../more/more_tab.dart';
 
@@ -10,6 +11,11 @@ import '../more/more_tab.dart';
 class ShellController extends GetxController {
   final index = 0.obs;
   void select(int value) => index.value = value;
+
+  // Chaque onglet se recharge quand on y revient (données modifiées ailleurs)
+  void onTabShown(int tab, VoidCallback reload) => ever<int>(index, (value) {
+        if (value == tab) reload();
+      });
 }
 
 class ShellPage extends StatelessWidget {
@@ -22,9 +28,9 @@ class ShellPage extends StatelessWidget {
           body: IndexedStack(
             index: shell.index.value,
             children: const [
-              _ComingSoon(title: 'Tableau de bord', step: 'l’étape 4'),
+              DashboardTab(),
               InvoicesTab(),
-              _ComingSoon(title: 'Clients', step: 'l’étape 4'),
+              ClientsTab(),
               MoreTab(),
             ],
           ),
@@ -45,15 +51,3 @@ class ShellPage extends StatelessWidget {
   }
 }
 
-// Onglet pas encore développé (étapes suivantes du plan)
-class _ComingSoon extends StatelessWidget {
-  const _ComingSoon({required this.title, required this.step});
-  final String title;
-  final String step;
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(title)),
-        body: KfEmpty('Cet écran arrive à $step.', icon: Icons.construction_outlined),
-      );
-}

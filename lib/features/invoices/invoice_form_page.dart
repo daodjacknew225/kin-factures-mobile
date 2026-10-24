@@ -6,6 +6,7 @@ import '../../core/api.dart';
 import '../../core/format.dart';
 import '../../widgets/common.dart';
 import '../../widgets/dialogs.dart';
+import '../clients/client_form_page.dart';
 import 'invoice_rules.dart';
 import 'pickers.dart';
 
@@ -16,8 +17,9 @@ import 'pickers.dart';
 // La récurrence se règle sur le site ; celle d'un brouillon est renvoyée telle quelle.
 // Retourne l'identifiant de la facture enregistrée (null si rien n'a changé).
 class InvoiceFormPage extends StatefulWidget {
-  const InvoiceFormPage({super.key, this.invoiceId});
+  const InvoiceFormPage({super.key, this.invoiceId, this.clientId});
   final String? invoiceId;
+  final String? clientId; // nouvelle facture depuis la fiche d'un client
 
   @override
   State<InvoiceFormPage> createState() => _InvoiceFormPageState();
@@ -142,6 +144,7 @@ class _InvoiceFormPageState extends State<InvoiceFormPage> {
         _termDays = numOf(_settings['default_payment_terms_days']).toInt();
         _paymentMethods.addAll(_providers.where((p) => p['is_default'] == true).map((p) => p['id'] as String));
         _lines.add(_Line());
+        _clientId = widget.clientId;
       }
       setState(() => _loading = false);
     } on ApiException catch (error) {
@@ -186,6 +189,23 @@ class _InvoiceFormPageState extends State<InvoiceFormPage> {
         _clientId = client['id'] as String;
         _errors.remove('client');
       });
+    }
+  }
+
+  // Client absent de la liste : création sur place, puis sélection
+  Future<void> _newClient() async {
+    final id = await Get.to<String>(() => const ClientFormPage());
+    if (id == null) return;
+    try {
+      final clients = _list(await Api.to.get('/clients')).where((c) => c['is_archived'] != true).toList()
+        ..sort((a, b) => (a['name'] as String).toLowerCase().compareTo((b['name'] as String).toLowerCase()));
+      setState(() {
+        _clients = clients;
+        _clientId = id;
+        _errors.remove('client');
+      });
+    } on ApiException catch (error) {
+      showNotice(error.message, error: true);
     }
   }
 
@@ -382,7 +402,15 @@ class _InvoiceFormPageState extends State<InvoiceFormPage> {
           trailing: const Icon(Icons.chevron_right, color: KfColors.inkMuted),
         ),
       ),
-      const SizedBox(height: KfSpace.s6),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          onPressed: _saving ? null : _newClient,
+          icon: const Icon(Icons.person_add_alt, size: 18),
+          label: const Text('Nouveau client'),
+        ),
+      ),
+      const SizedBox(height: KfSpace.s2),
 
       // Devise et dates
       const KfSectionTitle('Facture'),

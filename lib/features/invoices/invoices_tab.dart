@@ -6,6 +6,7 @@ import '../../core/api.dart';
 import '../../core/auth.dart';
 import '../../core/format.dart';
 import '../../widgets/common.dart';
+import '../shell/shell_page.dart';
 import 'invoice_detail_page.dart';
 import 'invoice_form_page.dart';
 import 'invoice_rules.dart';
@@ -29,6 +30,7 @@ class _InvoicesTabState extends State<InvoicesTab> {
   void initState() {
     super.initState();
     _load();
+    Get.find<ShellController>().onTabShown(1, _load);
   }
 
   Future<void> _load() async {

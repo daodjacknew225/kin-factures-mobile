@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../app/config.dart';
 import '../../app/theme.dart';
 import '../../core/auth.dart';
+import '../products/products_page.dart';
 
 // Onglet « Plus » : compte connecté, autres écrans (produits, solde), liens du site, déconnexion
 class MoreTab extends StatelessWidget {
@@ -45,7 +46,7 @@ class MoreTab extends StatelessWidget {
           ),
           const SizedBox(height: KfSpace.s4),
           _Group(children: [
-            _Item(icon: Icons.inventory_2_outlined, label: 'Produits', subtitle: 'Arrive à l’étape 4', onTap: null),
+            _Item(icon: Icons.inventory_2_outlined, label: 'Produits et services', onTap: () => Get.to(() => const ProductsPage())),
             if (auth.can('retraits.demander'))
               _Item(icon: Icons.account_balance_wallet_outlined, label: 'Solde et retraits', subtitle: 'Arrive à l’étape 5', onTap: null),
           ]),
