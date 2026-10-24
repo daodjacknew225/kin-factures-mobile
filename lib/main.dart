@@ -48,7 +48,8 @@ class KinFacturesApp extends StatelessWidget {
         behavior: HitTestBehavior.translucent,
         onPointerDown: (_) => SessionLock.to.markActivity(),
         child: Obx(() => Stack(children: [
-              ?child,
+              // Écran verrouillé : le contenu caché n'est plus lisible (lecteur d'écran)
+              if (child != null) ExcludeSemantics(excluding: SessionLock.to.locked.value && Auth.to.signedIn, child: child),
               // Overlay propre : les champs de saisie en ont besoin (hors du navigateur de pages)
               if (SessionLock.to.locked.value && Auth.to.signedIn)
                 Overlay(initialEntries: [OverlayEntry(builder: (_) => const LockScreen())]),

@@ -421,3 +421,67 @@ class KfSearchField extends StatelessWidget {
         ),
       );
 }
+
+// Champ de saisie avec son libellé au-dessus (comme kf-field du site)
+class KfLabeledField extends StatelessWidget {
+  const KfLabeledField({
+    super.key,
+    required this.label,
+    required this.controller,
+    this.hint,
+    this.keyboardType,
+    this.obscureText = false,
+    this.suffix,
+    this.enabled = true,
+    this.autofillHints,
+    this.textInputAction,
+    this.onSubmitted,
+    this.errorText,
+  });
+  final String label;
+  final TextEditingController controller;
+  final String? hint;
+  final TextInputType? keyboardType;
+  final bool obscureText;
+  final Widget? suffix;
+  final bool enabled;
+  final Iterable<String>? autofillHints;
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onSubmitted;
+  final String? errorText;
+
+  @override
+  Widget build(BuildContext context) {
+    OutlineInputBorder border(Color color, [double width = 1]) =>
+        OutlineInputBorder(borderRadius: BorderRadius.circular(KfRadius.lg), borderSide: BorderSide(color: color, width: width));
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: KfColors.inkSoft)),
+      const SizedBox(height: 6),
+      TextField(
+        controller: controller,
+        enabled: enabled,
+        keyboardType: keyboardType,
+        obscureText: obscureText,
+        autocorrect: !obscureText && keyboardType != TextInputType.emailAddress,
+        enableSuggestions: !obscureText,
+        autofillHints: autofillHints,
+        textInputAction: textInputAction,
+        onSubmitted: onSubmitted,
+        style: const TextStyle(fontSize: 15),
+        decoration: InputDecoration(
+          hintText: hint,
+          errorText: errorText,
+          filled: true,
+          fillColor: KfColors.surface,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          suffixIcon: suffix,
+          border: border(KfColors.line),
+          enabledBorder: border(KfColors.line),
+          focusedBorder: border(KfColors.brand, 1.5),
+          errorBorder: border(KfColors.danger),
+          focusedErrorBorder: border(KfColors.danger, 1.5),
+        ),
+      ),
+    ]);
+  }
+}

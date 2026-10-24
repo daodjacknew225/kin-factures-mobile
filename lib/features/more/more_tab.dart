@@ -5,6 +5,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../app/config.dart';
 import '../../app/theme.dart';
 import '../../core/auth.dart';
+import '../../core/biometric_login.dart';
+import '../../widgets/dialogs.dart';
 import '../products/products_page.dart';
 
 // Onglet « Plus » : compte connecté, autres écrans (produits, solde), liens du site, déconnexion
@@ -62,6 +64,8 @@ class MoreTab extends StatelessWidget {
             _Item(icon: Icons.privacy_tip_outlined, label: 'Confidentialité', onTap: () => launchUrl(Uri.parse(AppConfig.privacyUrl))),
           ]),
           const SizedBox(height: KfSpace.s4),
+          const _Group(children: [_BiometricSwitch()]),
+          const SizedBox(height: KfSpace.s4),
           _Group(children: [
             _Item(icon: Icons.logout, label: 'Se déconnecter', danger: true, onTap: auth.signOut),
           ]),
@@ -103,4 +107,77 @@ class _Item extends StatelessWidget {
       onTap: onTap,
     );
   }
+}
+
+// Sécurité : activer ou désactiver la connexion par empreinte sur ce téléphone
+class _BiometricSwitch extends StatefulWidget {
+  const _BiometricSwitch();
+
+  @override
+  State<_BiometricSwitch> createState() => _BiometricSwitchState();
+}
+
+class _BiometricSwitchState extends State<_BiometricSwitch> {
+  bool? _available;
+  bool _enabled = false;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.wait([BiometricLogin.available(), BiometricLogin.enabled()]).then((values) {
+      if (!mounted) return;
+      setState(() {
+        _available = values[0];
+        _enabled = values[1];
+      });
+    });
+  }
+
+  // Activation : le mot de passe est redemandé (il n'est jamais gardé en dehors du coffre)
+  Future<void> _toggle(bool on) async {
+    if (!on) {
+      await BiometricLogin.disable();
+      setState(() => _enabled = false);
+      showNotice('Connexion par empreinte désactivée.');
+      return;
+    }
+    final password = TextEditingController();
+    final ok = await confirmAction(
+      title: 'Connexion par empreinte',
+      message: 'Saisissez votre mot de passe pour activer la connexion par empreinte sur ce téléphone.',
+      confirmLabel: 'Continuer',
+      extra: Padding(
+        padding: const EdgeInsets.only(top: KfSpace.s4),
+        child: TextField(controller: password, obscureText: true, autofocus: true, decoration: const InputDecoration(labelText: 'Mot de passe')),
+      ),
+    );
+    if (!ok || password.text.isEmpty) return;
+    setState(() => _busy = true);
+    try {
+      // Vérifie le mot de passe avant de le garder
+      await Auth.to.signIn(Auth.to.email, password.text);
+      if (await BiometricLogin.enable(Auth.to.email, password.text)) {
+        setState(() => _enabled = true);
+        showNotice('Connexion par empreinte activée.');
+      }
+    } catch (_) {
+      showNotice('Mot de passe incorrect.', error: true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => SwitchListTile(
+        value: _enabled,
+        onChanged: _available != true || _busy ? null : _toggle,
+        activeThumbColor: KfColors.brand,
+        secondary: const Icon(Icons.fingerprint, color: KfColors.inkMuted),
+        title: const Text('Connexion par empreinte', style: TextStyle(fontWeight: FontWeight.w500)),
+        subtitle: Text(
+          _available == false ? 'Aucune empreinte enregistrée sur ce téléphone' : 'Se connecter sans saisir le mot de passe',
+          style: const TextStyle(fontSize: 12, color: KfColors.inkMuted),
+        ),
+      );
 }

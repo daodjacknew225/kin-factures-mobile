@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:get/get.dart';
 
 import '../../app/theme.dart';
@@ -6,6 +8,7 @@ import '../../core/api.dart';
 import '../../core/auth.dart';
 import '../../core/session_lock.dart';
 import '../../widgets/common.dart';
+import '../../widgets/kit.dart';
 
 // Écran de verrouillage après inactivité (comme SessionLock du site) : par-dessus l'application,
 // qui garde son état. Déverrouillage par empreinte / code du téléphone, ou par mot de passe.
@@ -55,70 +58,93 @@ class _LockScreenState extends State<LockScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    return Material(
-      color: KfColors.surface,
-      child: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(KfSpace.s6),
-          children: [
-            const SizedBox(height: KfSpace.s8),
-            Center(
-              child: Container(
-                width: 64,
-                height: 64,
-                decoration: const BoxDecoration(color: KfColors.brandSoft, shape: BoxShape.circle),
-                child: const Icon(Icons.lock_outline, color: KfColors.brand, size: 30),
+    final top = MediaQuery.of(context).padding.top;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Material(
+        color: KfColors.surface,
+        child: SingleChildScrollView(
+          child: Column(children: [
+            // Bandeau vert : compte verrouillé
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.fromLTRB(KfSpace.s6, top + KfSpace.s8, KfSpace.s6, 72),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [KfColors.brandHover, KfColors.brand]),
+              ),
+              child: Column(children: [
+                KfAvatar(Auth.to.name, size: 72, inverted: true),
+                const SizedBox(height: KfSpace.s4),
+                Text(Auth.to.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: KfColors.onBrand)),
+                Text(Auth.to.email, style: TextStyle(fontSize: 14, color: KfColors.onBrand.withValues(alpha: 0.8))),
+              ]),
+            ),
+            Transform.translate(
+              offset: const Offset(0, -48),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: KfSpace.s4),
+                child: Container(
+                  padding: const EdgeInsets.all(KfSpace.s6),
+                  decoration: BoxDecoration(
+                    color: KfColors.surfaceRaised,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [BoxShadow(color: KfColors.ink.withValues(alpha: 0.08), blurRadius: 24, offset: const Offset(0, 8))],
+                  ),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                    const Row(children: [
+                      Icon(LucideIcons.lock, size: 20, color: KfColors.brand),
+                      SizedBox(width: KfSpace.s2),
+                      Text('Session verrouillée', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                    ]),
+                    const SizedBox(height: KfSpace.s1),
+                    const Text(
+                      'Après 15 minutes sans activité, Kin Factures se verrouille pour protéger vos données.',
+                      style: TextStyle(fontSize: 14, color: KfColors.inkMuted),
+                    ),
+                    const SizedBox(height: KfSpace.s6),
+                    Obx(() => SessionLock.to.biometricAvailable.value
+                        ? Padding(
+                            padding: const EdgeInsets.only(bottom: KfSpace.s4),
+                            child: FilledButton.icon(
+                              onPressed: _busy ? null : SessionLock.to.unlockWithDevice,
+                              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                              icon: const Icon(LucideIcons.fingerprint),
+                              label: const Text('Déverrouiller avec l’empreinte', style: TextStyle(fontWeight: FontWeight.w600)),
+                            ),
+                          )
+                        : const SizedBox.shrink()),
+                    KfLabeledField(
+                      label: 'Ou avec votre mot de passe',
+                      controller: _password,
+                      hint: 'Votre mot de passe',
+                      obscureText: true,
+                      enabled: !_busy,
+                      // Pas de remplissage automatique : le mot de passe doit être ressaisi
+                      autofillHints: const [],
+                      onSubmitted: (_) => _unlockWithPassword(),
+                    ),
+                    const SizedBox(height: KfSpace.s4),
+                    if (_error.isNotEmpty) ...[KfAlert(_error), const SizedBox(height: KfSpace.s4)],
+                    OutlinedButton(
+                      onPressed: _busy ? null : _unlockWithPassword,
+                      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                      child: Text(_busy ? 'Vérification…' : 'Déverrouiller', style: const TextStyle(fontWeight: FontWeight.w600)),
+                    ),
+                    const SizedBox(height: KfSpace.s2),
+                    TextButton(
+                      onPressed: _busy
+                          ? null
+                          : () {
+                              SessionLock.to.unlock();
+                              Auth.to.signOut();
+                            },
+                      child: const Text('Se déconnecter'),
+                    ),
+                  ]),
+                ),
               ),
             ),
-            const SizedBox(height: KfSpace.s6),
-            Text('Session verrouillée', textAlign: TextAlign.center, style: text.headlineSmall),
-            const SizedBox(height: KfSpace.s2),
-            Text(
-              'Après 15 minutes sans activité, Kin Factures se verrouille pour protéger vos données.',
-              textAlign: TextAlign.center,
-              style: text.bodyLarge?.copyWith(color: KfColors.inkMuted),
-            ),
-            const SizedBox(height: KfSpace.s2),
-            Text(Auth.to.email, textAlign: TextAlign.center, style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-            const SizedBox(height: KfSpace.s6),
-            Obx(() => SessionLock.to.biometricAvailable.value
-                ? Padding(
-                    padding: const EdgeInsets.only(bottom: KfSpace.s6),
-                    child: FilledButton.icon(
-                      onPressed: _busy ? null : SessionLock.to.unlockWithDevice,
-                      icon: const Icon(Icons.fingerprint),
-                      label: const Text('Déverrouiller avec l’empreinte'),
-                    ),
-                  )
-                : const SizedBox.shrink()),
-            TextField(
-              controller: _password,
-              obscureText: true,
-              enabled: !_busy,
-              // Pas de remplissage automatique : le mot de passe doit être ressaisi
-              autofillHints: const [],
-              enableSuggestions: false,
-              onSubmitted: (_) => _unlockWithPassword(),
-              decoration: const InputDecoration(labelText: 'Mot de passe'),
-            ),
-            const SizedBox(height: KfSpace.s4),
-            if (_error.isNotEmpty) ...[KfAlert(_error), const SizedBox(height: KfSpace.s4)],
-            OutlinedButton(
-              onPressed: _busy ? null : _unlockWithPassword,
-              child: Text(_busy ? 'Vérification…' : 'Déverrouiller avec le mot de passe'),
-            ),
-            const SizedBox(height: KfSpace.s2),
-            TextButton(
-              onPressed: _busy
-                  ? null
-                  : () {
-                      SessionLock.to.unlock();
-                      Auth.to.signOut();
-                    },
-              child: const Text('Se déconnecter'),
-            ),
-          ],
+          ]),
         ),
       ),
     );
