@@ -7,6 +7,10 @@ final _amount = NumberFormat.decimalPatternDigits(locale: 'fr_FR', decimalDigits
 // 18450 → « 18 450,00 »
 String formatNumber(num? value) => _amount.format(value ?? 0);
 
+// Quantité ou taux : 4 → « 4 », 2.5 → « 2,5 »
+final _decimal = NumberFormat.decimalPatternDigits(locale: 'fr_FR', decimalDigits: 0)..maximumFractionDigits = 3;
+String formatDecimal(num? value) => _decimal.format(value ?? 0);
+
 // 18450, 'USD' → « 18 450,00 USD »
 String formatAmount(num? value, String currency) => '${formatNumber(value)} $currency';
 

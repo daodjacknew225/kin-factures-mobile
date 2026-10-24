@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 // Couleurs et mesures du design system Kin Factures (src/styles/tokens.css du site).
 // Jamais de couleur codée en dur dans les écrans : toujours KfColors / KfSpace / KfRadius.
@@ -39,7 +38,7 @@ class KfRadius {
 
 ThemeData buildTheme() {
   // Inter sans espacement entre les lettres (comme le site ; Material en ajoute par défaut)
-  final base = GoogleFonts.interTextTheme().apply(bodyColor: KfColors.ink, displayColor: KfColors.ink);
+  final base = ThemeData.light().textTheme.apply(fontFamily: 'Inter', bodyColor: KfColors.ink, displayColor: KfColors.ink);
   TextStyle? tight(TextStyle? style) => style?.copyWith(letterSpacing: 0);
   final text = base.copyWith(
     displayLarge: tight(base.displayLarge),
@@ -67,6 +66,7 @@ ThemeData buildTheme() {
 
   return ThemeData(
     useMaterial3: true,
+    fontFamily: 'Inter',
     colorScheme: ColorScheme.fromSeed(
       seedColor: KfColors.brand,
       primary: KfColors.brand,
@@ -92,7 +92,7 @@ ThemeData buildTheme() {
       elevation: 0,
       scrolledUnderElevation: 0,
       shape: const Border(bottom: BorderSide(color: KfColors.line)),
-      titleTextStyle: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w600, color: KfColors.ink),
+      titleTextStyle: const TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.w600, color: KfColors.ink),
     ),
     cardTheme: CardThemeData(
       color: KfColors.surfaceRaised,
@@ -146,7 +146,8 @@ ThemeData buildTheme() {
       indicatorColor: KfColors.brandSoft,
       height: 68,
       labelTextStyle: WidgetStateProperty.resolveWith(
-        (states) => GoogleFonts.inter(
+        (states) => TextStyle(
+          fontFamily: 'Inter',
           fontSize: 12,
           fontWeight: states.contains(WidgetState.selected) ? FontWeight.w600 : FontWeight.w500,
           color: states.contains(WidgetState.selected) ? KfColors.brand : KfColors.inkMuted,

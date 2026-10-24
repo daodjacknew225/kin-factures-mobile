@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../app/theme.dart';
 import '../../widgets/common.dart';
+import '../invoices/invoices_tab.dart';
 import '../more/more_tab.dart';
 
 // Écran principal : menu du bas (Accueil, Factures, Clients, Plus). Chaque onglet garde son état.
@@ -22,7 +23,7 @@ class ShellPage extends StatelessWidget {
             index: shell.index.value,
             children: const [
               _ComingSoon(title: 'Tableau de bord', step: 'l’étape 4'),
-              _ComingSoon(title: 'Factures', step: 'l’étape 3'),
+              InvoicesTab(),
               _ComingSoon(title: 'Clients', step: 'l’étape 4'),
               MoreTab(),
             ],

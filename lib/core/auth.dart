@@ -14,6 +14,7 @@ class Auth extends GetxService {
   Api get _api => Api.to;
 
   bool get signedIn => me.value != null;
+  String get userId => (me.value?['user']?['id'] ?? '') as String;
   String get email => (me.value?['user']?['email'] ?? '') as String;
   String get name => (me.value?['user']?['name'] ?? '') as String;
   String get firstName => name.trim().split(RegExp(r'\s+')).first;

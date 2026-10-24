@@ -44,7 +44,6 @@ dependencies:
   local_auth: ^3.0.2
   share_plus: ^13.3.1
   url_launcher: ^6.3.2
-  google_fonts: ^8.2.1
   flutter_svg: ^2.3.0
   local_auth_android: ^2.0.8
 
@@ -72,6 +71,18 @@ flutter:
 
   assets:
     - assets/
+
+  # Police Inter (comme le site), intégrée : pas de téléchargement, affichage stable hors connexion
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
 
   # To add assets to your application, add an assets section, like this:
   # assets:
