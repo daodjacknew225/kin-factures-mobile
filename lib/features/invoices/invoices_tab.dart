@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../app/theme.dart';
 import '../../core/api.dart';
 import '../../core/auth.dart';
 import '../../core/format.dart';
 import '../../widgets/common.dart';
+import '../../widgets/kit.dart';
+import '../shell/quick_actions.dart';
 import '../shell/shell_page.dart';
 import 'invoice_detail_page.dart';
-import 'invoice_form_page.dart';
 import 'invoice_rules.dart';
 
-// Onglet Factures : factures émises par l'entreprise, recherche (numéro, client) et filtres par statut
-// (comme la page /factures du site). Tirer vers le bas pour actualiser.
+// Onglet Factures : factures émises par l'entreprise, reste à encaisser, recherche (numéro, client)
+// et filtres par statut (comme la page /factures du site). Tirer vers le bas pour actualiser.
 class InvoicesTab extends StatefulWidget {
   const InvoicesTab({super.key});
 
@@ -40,9 +42,9 @@ class _InvoicesTabState extends State<InvoicesTab> {
         ..sort((a, b) => (b['created_at'] as String).compareTo(a['created_at'] as String));
       if (mounted) {
         setState(() {
-        _invoices = list;
-        _error = '';
-      });
+          _invoices = list;
+          _error = '';
+        });
       }
     } on ApiException catch (error) {
       if (mounted) setState(() => _error = 'Impossible de charger les factures : ${error.message}');
@@ -52,14 +54,6 @@ class _InvoicesTabState extends State<InvoicesTab> {
   Future<void> _openDetail(String id) async {
     final changed = await Get.to<bool>(() => InvoiceDetailPage(id: id));
     if (changed == true) _load();
-  }
-
-  // Nouvelle facture : une fois enregistrée, on ouvre son détail
-  Future<void> _create() async {
-    final id = await Get.to<String>(() => const InvoiceFormPage());
-    if (id == null) return;
-    _load();
-    await _openDetail(id);
   }
 
   String _normalize(String text) => text.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
@@ -74,97 +68,83 @@ class _InvoicesTabState extends State<InvoicesTab> {
     final tab = invoiceTabs.firstWhere((t) => t.id == _tab);
     final rows = searched.where((i) => tab.match(i['display_status'] as String)).toList();
 
+    // Reste à encaisser (factures émises non soldées), par devise
+    final due = <String, double>{};
+    for (final invoice in (invoices ?? const <Json>[]).where(isOpen)) {
+      final code = invoice['currency'] as String;
+      due[code] = (due[code] ?? 0) + numOf(invoice['balance_due']).toDouble();
+    }
+    final dueText = due.entries.where((e) => e.value > 0).map((e) => formatAmount(e.value, e.key)).join(' · ');
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Factures')),
-      floatingActionButton: Auth.to.can('factures.creer')
-          ? FloatingActionButton.extended(
-              onPressed: _create,
-              backgroundColor: KfColors.brand,
-              foregroundColor: KfColors.onBrand,
-              icon: const Icon(Icons.add),
-              label: const Text('Nouvelle facture'),
-            )
-          : null,
-      body: _error.isNotEmpty && invoices == null
-          ? KfErrorView(_error, onRetry: _load)
-          : invoices == null
-              ? const KfLoader()
-              : Column(children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(KfSpace.s4, KfSpace.s4, KfSpace.s4, KfSpace.s2),
-                    child: TextField(
-                      onChanged: (value) => setState(() => _search = value),
-                      textInputAction: TextInputAction.search,
-                      decoration: const InputDecoration(
-                        hintText: 'Numéro ou client…',
-                        prefixIcon: Icon(Icons.search),
-                        contentPadding: EdgeInsets.symmetric(vertical: 10),
-                      ),
+      backgroundColor: KfColors.surface,
+      body: RefreshIndicator(
+        color: KfColors.brand,
+        onRefresh: _load,
+        edgeOffset: MediaQuery.of(context).padding.top,
+        child: CustomScrollView(slivers: [
+          SliverToBoxAdapter(
+            child: KfPageHeader(
+              title: 'Factures',
+              subtitle: invoices == null
+                  ? null
+                  : Text(
+                      dueText.isEmpty ? 'Tout est encaissé' : 'À encaisser : $dueText',
+                      style: const TextStyle(fontSize: 14, color: KfColors.inkMuted),
                     ),
-                  ),
-                  SizedBox(
-                    height: 48,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: KfSpace.s4),
-                      children: [
-                        for (final t in invoiceTabs)
-                          Padding(
-                            padding: const EdgeInsets.only(right: KfSpace.s2),
-                            child: ChoiceChip(
-                              label: Text('${t.label} ${searched.where((i) => t.match(i['display_status'] as String)).length}'),
-                              selected: _tab == t.id,
-                              onSelected: (_) => setState(() => _tab = t.id),
-                              selectedColor: KfColors.brandSoft,
-                              backgroundColor: KfColors.surfaceRaised,
-                              side: BorderSide(color: _tab == t.id ? KfColors.brand : KfColors.line),
-                              labelStyle: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: _tab == t.id ? KfColors.brand : KfColors.inkMuted,
-                              ),
-                              showCheckmark: false,
-                            ),
+            ),
+          ),
+          SliverToBoxAdapter(child: KfSearchField(hint: 'Rechercher un numéro ou un client', onChanged: (v) => setState(() => _search = v))),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(top: KfSpace.s3, bottom: KfSpace.s3),
+              child: KfFilterPills(
+                options: [
+                  for (final t in invoiceTabs) (t.id, t.label, invoices == null ? null : searched.where((i) => t.match(i['display_status'] as String)).length),
+                ],
+                selected: _tab,
+                onSelected: (id) => setState(() => _tab = id),
+              ),
+            ),
+          ),
+          if (_error.isNotEmpty && invoices != null)
+            SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(KfSpace.s4, 0, KfSpace.s4, KfSpace.s3), child: KfAlert(_error))),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(KfSpace.s4, 0, KfSpace.s4, KfSpace.s8),
+            sliver: SliverToBoxAdapter(
+              child: invoices == null
+                  ? (_error.isNotEmpty ? KfErrorView(_error, onRetry: _load) : const KfListSkeleton(rows: 7))
+                  : rows.isEmpty
+                      ? KfGroup(children: [
+                          KfEmptyState(
+                            icon: LucideIcons.receipt,
+                            title: invoices.isEmpty
+                                ? 'Aucune facture pour le moment'
+                                : query.isNotEmpty
+                                    ? 'Aucun résultat'
+                                    : 'Rien dans cet onglet',
+                            message: invoices.isEmpty
+                                ? 'Créez votre première facture : votre client la reçoit avec un lien de paiement.'
+                                : query.isNotEmpty
+                                    ? 'Aucune facture ne correspond à « ${_search.trim()} ».'
+                                    : null,
+                            action: invoices.isEmpty && Auth.to.can('factures.creer') ? 'Nouvelle facture' : null,
+                            onAction: quickNewInvoice,
                           ),
-                      ],
-                    ),
-                  ),
-                  if (_error.isNotEmpty)
-                    Padding(padding: const EdgeInsets.symmetric(horizontal: KfSpace.s4), child: KfAlert(_error)),
-                  Expanded(
-                    child: RefreshIndicator(
-                      color: KfColors.brand,
-                      onRefresh: _load,
-                      child: rows.isEmpty
-                          ? ListView(children: [
-                              const SizedBox(height: 80),
-                              KfEmpty(
-                                invoices.isEmpty
-                                    ? 'Aucune facture pour le moment.'
-                                    : query.isNotEmpty
-                                        ? 'Aucune facture ne correspond à cette recherche.'
-                                        : 'Aucune facture dans cet onglet.',
-                                icon: Icons.receipt_long_outlined,
-                              ),
-                            ])
-                          : ListView.separated(
-                              padding: const EdgeInsets.fromLTRB(KfSpace.s4, KfSpace.s2, KfSpace.s4, 96),
-                              itemCount: rows.length,
-                              separatorBuilder: (_, _) => const SizedBox(height: KfSpace.s2),
-                              itemBuilder: (_, index) => _InvoiceCard(
-                                invoice: rows[index],
-                                onTap: () => _openDetail(rows[index]['id'] as String),
-                              ),
-                            ),
-                    ),
-                  ),
-                ]),
+                        ])
+                      : KfGroup(children: [
+                          for (final invoice in rows) _InvoiceRow(invoice: invoice, onTap: () => _openDetail(invoice['id'] as String)),
+                        ]),
+            ),
+          ),
+        ]),
+      ),
     );
   }
 }
 
-class _InvoiceCard extends StatelessWidget {
-  const _InvoiceCard({required this.invoice, required this.onTap});
+class _InvoiceRow extends StatelessWidget {
+  const _InvoiceRow({required this.invoice, required this.onTap});
   final Json invoice;
   final VoidCallback onTap;
 
@@ -172,51 +152,23 @@ class _InvoiceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final status = invoice['display_status'] as String;
     final draft = invoice['status'] == 'draft';
-    final open = isOpen(invoice);
-    final late = status == 'overdue';
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(KfSpace.s4),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Expanded(
-                child: Text(
-                  invoice['client_name'] as String? ?? '—',
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: KfSpace.s2),
-              KfAmount(numOf(invoice['total']), invoice['currency'] as String, size: AmountSize.md),
-            ]),
-            const SizedBox(height: KfSpace.s1),
-            Row(children: [
-              Expanded(
-                child: Text(
-                  [
-                    if (!draft) invoice['number'] as String? ?? '', // brouillon : pas encore de numéro (voir le badge)
-                    if (invoice['schedule_id'] != null) 'Récurrente',
-                    'échéance ${formatDate(invoice['due_date'] as String?)}',
-                  ].join(' · '),
-                  style: TextStyle(fontSize: 13, color: late ? KfColors.danger : KfColors.inkMuted),
-                ),
-              ),
-              statusBadge(status),
-            ]),
-            if (open && numOf(invoice['amount_paid']) > 0) ...[
-              const SizedBox(height: KfSpace.s1),
-              Text(
-                'Reste à payer : ${formatAmount(numOf(invoice['balance_due']), invoice['currency'] as String)}',
-                style: const TextStyle(fontSize: 13, color: KfColors.pending, fontWeight: FontWeight.w500),
-              ),
-            ],
-          ]),
-        ),
-      ),
+    final partial = isOpen(invoice) && numOf(invoice['amount_paid']) > 0;
+    final parts = [
+      if (!draft) invoice['number'] as String? ?? '', // brouillon : la pastille le dit
+      if (partial)
+        'reste ${formatAmount(numOf(invoice['balance_due']), invoice['currency'] as String)}'
+      else
+        'éch. ${formatDate(invoice['due_date'] as String?)}',
+      if (invoice['schedule_id'] != null) 'récurrente',
+    ];
+    return KfRow(
+      leading: KfAvatar(invoice['client_name'] as String? ?? '?'),
+      title: invoice['client_name'] as String? ?? '—',
+      subtitle: parts.join(' · '),
+      subtitleColor: status == 'overdue' ? KfColors.danger : (partial ? KfColors.pending : null),
+      trailing: KfAmount(numOf(invoice['total']), invoice['currency'] as String, size: AmountSize.sm),
+      trailingBottom: statusPill(status),
+      onTap: onTap,
     );
   }
 }

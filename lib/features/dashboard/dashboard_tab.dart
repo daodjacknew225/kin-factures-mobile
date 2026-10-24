@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../app/theme.dart';
 import '../../core/api.dart';
 import '../../core/auth.dart';
 import '../../core/format.dart';
 import '../../widgets/common.dart';
+import '../../widgets/kit.dart';
 import '../invoices/invoice_detail_page.dart';
 import '../invoices/invoice_rules.dart';
+import '../shell/quick_actions.dart';
 import '../shell/shell_page.dart';
 
-// Tableau de bord (mêmes calculs que DashboardPage.jsx du site) : encaissé ce mois, en attente,
-// en retard (par devise), clients actifs, factures récentes, à relancer, derniers paiements en ligne.
+// Accueil (mêmes calculs que DashboardPage.jsx du site) : bandeau vert avec l'encaissé du mois et
+// les actions rapides, puis en attente / en retard, factures à relancer, activité récente.
 class DashboardTab extends StatefulWidget {
   const DashboardTab({super.key});
 
@@ -25,7 +28,7 @@ class _Dashboard {
   _Dashboard(this.currency);
   final String currency;
   Map<String, double> paid = {}, pending = {}, overdue = {};
-  int paidCount = 0, pendingCount = 0, overdueCount = 0, clientCount = 0, newClients = 0;
+  int paidCount = 0, pendingCount = 0, overdueCount = 0;
   List<Json> recent = [], late = [], lastPayments = [];
 }
 
@@ -57,7 +60,6 @@ class _DashboardTabState extends State<DashboardTab> {
         Api.to.get('/settings'),
         Api.to.get('/invoices'),
         Api.to.get('/payments'),
-        Api.to.get('/clients'),
       ]);
       final now = DateTime.now();
       final monthStart = DateTime(now.year, now.month);
@@ -70,8 +72,6 @@ class _DashboardTabState extends State<DashboardTab> {
         ..sort((a, b) => (b['created_at'] as String).compareTo(a['created_at'] as String));
       final byId = {for (final i in invoices) i['id']: i};
       final payments = _list(results[2]).where((p) => byId.containsKey(p['invoice_id'])).toList();
-      final clients = _list(results[3]).where((c) => c['is_archived'] != true).toList();
-
       final pending = invoices.where((i) => ['sent', 'partially_paid'].contains(i['display_status']));
       final overdue = invoices.where((i) => i['display_status'] == 'overdue').toList()
         ..sort((a, b) => (a['due_date'] as String).compareTo(b['due_date'] as String));
@@ -83,8 +83,6 @@ class _DashboardTabState extends State<DashboardTab> {
         ..pendingCount = pending.length
         ..overdue = _sumByCurrency(overdue, 'balance_due')
         ..overdueCount = overdue.length
-        ..clientCount = clients.length
-        ..newClients = clients.where((c) => thisMonth(c['created_at'])).length
         ..recent = invoices.take(5).toList()
         ..late = overdue.take(5).toList()
         ..lastPayments = payments
@@ -94,9 +92,9 @@ class _DashboardTabState extends State<DashboardTab> {
             .toList();
       if (mounted) {
         setState(() {
-        _data = data;
-        _error = '';
-      });
+          _data = data;
+          _error = '';
+        });
       }
     } on ApiException catch (error) {
       if (mounted) setState(() => _error = 'Impossible de charger le tableau de bord : ${error.message}');
@@ -116,146 +114,252 @@ class _DashboardTabState extends State<DashboardTab> {
   @override
   Widget build(BuildContext context) {
     final data = _data;
-    final firstName = Auth.to.firstName;
     return Scaffold(
-      appBar: AppBar(title: Obx(() => Text(Auth.to.companyName.value.isEmpty ? 'Tableau de bord' : Auth.to.companyName.value))),
-      body: data == null
-          ? (_error.isNotEmpty ? KfErrorView(_error, onRetry: _load) : const KfLoader())
-          : RefreshIndicator(
-              color: KfColors.brand,
-              onRefresh: _load,
-              child: ListView(padding: const EdgeInsets.all(KfSpace.s4), children: [
-                Text(firstName.isEmpty ? 'Bonjour' : 'Bonjour $firstName', style: Theme.of(context).textTheme.headlineSmall),
-                Text('Voici l’état de vos factures en ${currentMonthLabel()}.', style: Theme.of(context).textTheme.bodySmall),
-                if (_error.isNotEmpty) ...[const SizedBox(height: KfSpace.s4), KfAlert(_error)],
-                const SizedBox(height: KfSpace.s4),
-                GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: KfSpace.s2,
-                  crossAxisSpacing: KfSpace.s2,
-                  childAspectRatio: 1.3,
-                  children: [
-                    _StatCard(label: 'Encaissé ce mois', dot: KfColors.brand, amounts: data.paid, currency: data.currency,
-                        note: plural(data.paidCount, 'facture payée', 'factures payées')),
-                    _StatCard(label: 'En attente', dot: KfColors.pending, amounts: data.pending, currency: data.currency,
-                        note: plural(data.pendingCount, 'facture', 'factures')),
-                    _StatCard(label: 'En retard', dot: KfColors.danger, amounts: data.overdue, currency: data.currency,
-                        note: plural(data.overdueCount, 'facture', 'factures')),
-                    _StatCard(label: 'Clients actifs', dot: KfColors.inkMuted, value: '${data.clientCount}',
-                        note: plural(data.newClients, 'nouveau ce mois', 'nouveaux ce mois')),
-                  ],
-                ),
-                const SizedBox(height: KfSpace.s6),
+      backgroundColor: KfColors.surface,
+      body: RefreshIndicator(
+        color: KfColors.brand,
+        onRefresh: _load,
+        edgeOffset: MediaQuery.of(context).padding.top,
+        child: ListView(padding: EdgeInsets.zero, children: [
+          _Hero(data: data),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(KfSpace.s4, KfSpace.s4, KfSpace.s4, KfSpace.s8),
+            child: data == null
+                ? (_error.isNotEmpty ? KfErrorView(_error, onRetry: _load) : const _BodySkeleton())
+                : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                    if (_error.isNotEmpty) ...[KfAlert(_error), const SizedBox(height: KfSpace.s3)],
+                    Row(children: [
+                      Expanded(child: _Tile(label: 'En attente', dot: KfColors.pending, amounts: data.pending, currency: data.currency, count: data.pendingCount)),
+                      const SizedBox(width: KfSpace.s3),
+                      Expanded(child: _Tile(label: 'En retard', dot: KfColors.danger, amounts: data.overdue, currency: data.currency, count: data.overdueCount, alert: data.overdueCount > 0)),
+                    ]),
 
-                KfSectionTitle('À relancer', trailing: data.late.isEmpty ? null : Text('${data.overdueCount}', style: const TextStyle(color: KfColors.danger, fontWeight: FontWeight.w600))),
-                Card(
-                  child: data.late.isEmpty
-                      ? const Padding(padding: EdgeInsets.all(KfSpace.s4), child: Text('Aucune facture en retard.', style: TextStyle(color: KfColors.inkMuted)))
-                      : Column(children: [
-                          for (var i = 0; i < data.late.length; i++) ...[
-                            if (i > 0) const Divider(),
-                            ListTile(
-                              onTap: () => _openInvoice(data.late[i]['id'] as String),
-                              title: Text(data.late[i]['client_name'] as String? ?? '—', style: const TextStyle(fontWeight: FontWeight.w500)),
-                              subtitle: Text(
-                                '${data.late[i]['number']} · en retard de ${plural(_daysSince(data.late[i]['due_date'] as String), 'jour')}',
-                                style: const TextStyle(fontSize: 13, color: KfColors.danger),
+                    KfOverline('À relancer', action: data.overdueCount > 0 ? 'Tout voir' : null, onAction: () => Get.find<ShellController>().select(1)),
+                    data.late.isEmpty
+                        ? const _AllGood()
+                        : KfGroup(children: [
+                            for (final invoice in data.late)
+                              KfRow(
+                                leading: KfAvatar(invoice['client_name'] as String? ?? '?'),
+                                title: invoice['client_name'] as String? ?? '—',
+                                subtitle: '${invoice['number']} · en retard de ${plural(_daysSince(invoice['due_date'] as String), 'jour')}',
+                                subtitleColor: KfColors.danger,
+                                trailing: KfAmount(numOf(invoice['balance_due']), invoice['currency'] as String, size: AmountSize.sm),
+                                onTap: () => _openInvoice(invoice['id'] as String),
                               ),
-                              trailing: KfAmount(numOf(data.late[i]['balance_due']), data.late[i]['currency'] as String, size: AmountSize.sm),
-                            ),
-                          ],
-                        ]),
-                ),
-                const SizedBox(height: KfSpace.s6),
+                          ]),
 
-                KfSectionTitle(
-                  'Factures récentes',
-                  trailing: TextButton(onPressed: () => Get.find<ShellController>().select(1), child: const Text('Voir tout')),
-                ),
-                Card(
-                  child: data.recent.isEmpty
-                      ? const Padding(padding: EdgeInsets.all(KfSpace.s4), child: Text('Aucune facture pour le moment.', style: TextStyle(color: KfColors.inkMuted)))
-                      : Column(children: [
-                          for (var i = 0; i < data.recent.length; i++) ...[
-                            if (i > 0) const Divider(),
-                            ListTile(
-                              onTap: () => _openInvoice(data.recent[i]['id'] as String),
-                              title: Text(data.recent[i]['client_name'] as String? ?? '—', style: const TextStyle(fontWeight: FontWeight.w500)),
-                              subtitle: Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Row(children: [statusBadge(data.recent[i]['display_status'] as String?)]),
+                    KfOverline('Factures récentes', action: 'Tout voir', onAction: () => Get.find<ShellController>().select(1)),
+                    data.recent.isEmpty
+                        ? KfGroup(children: [
+                            KfEmptyState(
+                              icon: LucideIcons.receipt,
+                              title: 'Aucune facture pour le moment',
+                              message: 'Créez votre première facture : votre client la reçoit avec un lien de paiement.',
+                              action: Auth.to.can('factures.creer') ? 'Nouvelle facture' : null,
+                              onAction: quickNewInvoice,
+                            ),
+                          ])
+                        : KfGroup(children: [
+                            for (final invoice in data.recent)
+                              KfRow(
+                                leading: KfAvatar(invoice['client_name'] as String? ?? '?'),
+                                title: invoice['client_name'] as String? ?? '—',
+                                subtitle: invoice['status'] == 'draft'
+                                    ? 'Créée le ${formatDate(invoice['created_at'] as String?)}'
+                                    : '${invoice['number']} · ${formatDate(invoice['issue_date'] as String?)}',
+                                trailing: KfAmount(numOf(invoice['total']), invoice['currency'] as String, size: AmountSize.sm),
+                                trailingBottom: statusPill(invoice['display_status'] as String?),
+                                onTap: () => _openInvoice(invoice['id'] as String),
                               ),
-                              trailing: KfAmount(numOf(data.recent[i]['total']), data.recent[i]['currency'] as String, size: AmountSize.sm),
+                          ]),
+
+                    if (data.lastPayments.isNotEmpty) ...[
+                      const KfOverline('Paiements en ligne'),
+                      KfGroup(children: [
+                        for (final payment in data.lastPayments)
+                          KfRow(
+                            leading: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: const BoxDecoration(color: KfColors.brandSoft, shape: BoxShape.circle),
+                              child: const Icon(LucideIcons.arrowDownLeft, size: 20, color: KfColors.brand),
                             ),
-                          ],
-                        ]),
-                ),
-                const SizedBox(height: KfSpace.s6),
-
-                const KfSectionTitle('Derniers paiements en ligne'),
-                Card(
-                  child: data.lastPayments.isEmpty
-                      ? const Padding(padding: EdgeInsets.all(KfSpace.s4), child: Text('Aucun paiement pour le moment.', style: TextStyle(color: KfColors.inkMuted)))
-                      : Column(children: [
-                          for (var i = 0; i < data.lastPayments.length; i++) ...[
-                            if (i > 0) const Divider(),
-                            ListTile(
-                              onTap: () => _openInvoice(data.lastPayments[i]['invoice_id'] as String),
-                              title: Text(data.lastPayments[i]['client_name'] as String? ?? '—', style: const TextStyle(fontWeight: FontWeight.w500)),
-                              subtitle: Text(
-                                '${paymentMethodLabels[data.lastPayments[i]['method']] ?? ''} · ${formatDateTime((data.lastPayments[i]['paid_at'] ?? data.lastPayments[i]['created_at']) as String?)}',
-                                style: const TextStyle(fontSize: 13, color: KfColors.inkMuted),
-                              ),
-                              trailing: KfAmount(numOf(data.lastPayments[i]['amount']), data.lastPayments[i]['currency'] as String,
-                                  size: AmountSize.sm, color: KfColors.brand),
-                            ),
-                          ],
-                        ]),
-                ),
-                const SizedBox(height: KfSpace.s6),
-              ]),
-            ),
-    );
-  }
-}
-
-// Carte d'indicateur (kf-stat du site) : montant dans la devise principale, autre devise en dessous
-class _StatCard extends StatelessWidget {
-  const _StatCard({required this.label, required this.dot, this.amounts, this.currency, this.value, required this.note});
-  final String label;
-  final Color dot;
-  final Map<String, double>? amounts;
-  final String? currency;
-  final String? value;
-  final String note;
-
-  @override
-  Widget build(BuildContext context) {
-    final others = amounts?.entries.where((e) => e.key != currency && e.value != 0).toList() ?? const [];
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(KfSpace.s3),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Container(width: 8, height: 8, decoration: BoxDecoration(color: dot, shape: BoxShape.circle)),
-            const SizedBox(width: 6),
-            Expanded(child: Text(label, style: const TextStyle(fontSize: 13, color: KfColors.inkMuted), maxLines: 1, overflow: TextOverflow.ellipsis)),
-          ]),
-          const Spacer(),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: amounts != null
-                ? KfAmount(amounts![currency] ?? 0, currency!, size: AmountSize.lg)
-                : Text(value ?? '', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600)),
+                            title: payment['client_name'] as String? ?? '—',
+                            subtitle:
+                                '${paymentMethodLabels[payment['method']] ?? ''} · ${formatDateTime((payment['paid_at'] ?? payment['created_at']) as String?)}',
+                            trailing: KfAmount(numOf(payment['amount']), payment['currency'] as String, size: AmountSize.sm, color: KfColors.brand),
+                            onTap: () => _openInvoice(payment['invoice_id'] as String),
+                          ),
+                      ]),
+                    ],
+                  ]),
           ),
-          for (final other in others) KfAmount(other.value, other.key, size: AmountSize.sm),
-          const Spacer(),
-          Text(note, style: const TextStyle(fontSize: 12, color: KfColors.inkMuted), maxLines: 1, overflow: TextOverflow.ellipsis),
         ]),
       ),
     );
   }
+}
+
+// Bandeau vert : entreprise, compte, encaissé du mois, actions rapides
+class _Hero extends StatelessWidget {
+  const _Hero({required this.data});
+  final _Dashboard? data;
+
+  @override
+  Widget build(BuildContext context) {
+    final data = this.data;
+    final others = data?.paid.entries.where((e) => e.key != data.currency && e.value != 0).toList() ?? const [];
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [KfColors.brandHover, KfColors.brand],
+        ),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.fromLTRB(KfSpace.s6, MediaQuery.of(context).padding.top + KfSpace.s4, KfSpace.s6, KfSpace.s6),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(
+            child: Obx(() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(
+                    Auth.to.companyName.value.isEmpty ? 'Kin Factures' : Auth.to.companyName.value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: KfColors.onBrand),
+                  ),
+                  Text(
+                    Auth.to.firstName.isEmpty ? 'Bonjour' : 'Bonjour ${Auth.to.firstName}',
+                    style: TextStyle(fontSize: 13, color: KfColors.onBrand.withValues(alpha: 0.75)),
+                  ),
+                ])),
+          ),
+          GestureDetector(
+            onTap: () => Get.find<ShellController>().select(3),
+            child: KfAvatar(Auth.to.name, size: 42, inverted: true),
+          ),
+        ]),
+        const SizedBox(height: KfSpace.s6),
+        Text('Encaissé en ${currentMonthLabel()}', style: TextStyle(fontSize: 13, color: KfColors.onBrand.withValues(alpha: 0.75))),
+        const SizedBox(height: KfSpace.s1),
+        if (data == null)
+          KfSkeleton(child: KfBone(width: 180, height: 36, radius: 8, color: KfColors.onBrand.withValues(alpha: 0.18)))
+        else
+          Text.rich(
+            TextSpan(children: [
+              TextSpan(text: formatNumber(data.paid[data.currency] ?? 0)),
+              TextSpan(text: ' ${data.currency}', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: KfColors.onBrand.withValues(alpha: 0.7))),
+            ]),
+            style: const TextStyle(fontSize: 36, height: 44 / 36, fontWeight: FontWeight.w700, letterSpacing: -0.5, color: KfColors.onBrand,
+                fontFeatures: [FontFeature.tabularFigures()]),
+          ),
+        for (final other in others)
+          Text(formatAmount(other.value, other.key), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: KfColors.onBrand.withValues(alpha: 0.85))),
+        if (data != null)
+          Text('${plural(data.paidCount, 'facture soldée', 'factures soldées')} ce mois',
+              style: TextStyle(fontSize: 13, color: KfColors.onBrand.withValues(alpha: 0.75))),
+        const SizedBox(height: KfSpace.s6),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Expanded(
+            child: KfQuickAction(
+              icon: LucideIcons.filePlus,
+              label: 'Facture',
+              inverted: true,
+              onTap: Auth.to.can('factures.creer') ? quickNewInvoice : null,
+            ),
+          ),
+          Expanded(
+            child: KfQuickAction(
+              icon: LucideIcons.banknote,
+              label: 'Encaisser',
+              inverted: true,
+              onTap: Auth.to.can('paiements.saisir') ? quickRecordPayment : null,
+            ),
+          ),
+          const Expanded(child: KfQuickAction(icon: LucideIcons.userPlus, label: 'Client', inverted: true, onTap: quickNewClient)),
+          const Expanded(child: KfQuickAction(icon: LucideIcons.share2, label: 'Partager', inverted: true, onTap: quickShareLink)),
+        ]),
+      ]),
+    );
+  }
+}
+
+// Petite carte : en attente / en retard
+class _Tile extends StatelessWidget {
+  const _Tile({required this.label, required this.dot, required this.amounts, required this.currency, required this.count, this.alert = false});
+  final String label;
+  final Color dot;
+  final Map<String, double> amounts;
+  final String currency;
+  final int count;
+  final bool alert;
+
+  @override
+  Widget build(BuildContext context) {
+    final others = amounts.entries.where((e) => e.key != currency && e.value != 0).toList();
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: alert ? KfColors.dangerSoft : KfColors.surfaceRaised,
+        borderRadius: BorderRadius.circular(KfRadius.lg),
+        border: Border.all(color: alert ? KfColors.dangerSoft : KfColors.line),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(width: 8, height: 8, decoration: BoxDecoration(color: dot, shape: BoxShape.circle)),
+          const SizedBox(width: 6),
+          Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: KfColors.inkSoft)),
+        ]),
+        const SizedBox(height: KfSpace.s2),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text.rich(
+            TextSpan(children: [
+              TextSpan(text: formatNumber(amounts[currency] ?? 0)),
+              TextSpan(text: ' $currency', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: KfColors.inkMuted)),
+            ]),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: alert ? KfColors.danger : KfColors.ink,
+                fontFeatures: const [FontFeature.tabularFigures()]),
+          ),
+        ),
+        for (final other in others)
+          Text(formatAmount(other.value, other.key), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: KfColors.inkSoft)),
+        const SizedBox(height: 2),
+        Text(plural(count, 'facture'), style: const TextStyle(fontSize: 12, color: KfColors.inkMuted)),
+      ]),
+    );
+  }
+}
+
+class _AllGood extends StatelessWidget {
+  const _AllGood();
+
+  @override
+  Widget build(BuildContext context) => const KfGroup(children: [
+        KfRow(
+          leading: CircleAvatar(radius: 20, backgroundColor: KfColors.brandSoft, child: Icon(LucideIcons.circleCheck, size: 20, color: KfColors.brand)),
+          title: 'Aucune facture en retard',
+          subtitle: 'Vos clients sont à jour de leurs paiements.',
+        ),
+      ]);
+}
+
+class _BodySkeleton extends StatelessWidget {
+  const _BodySkeleton();
+
+  @override
+  Widget build(BuildContext context) => const Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        KfSkeleton(
+          child: Row(children: [
+            Expanded(child: KfBone(height: 92, radius: 12)),
+            SizedBox(width: KfSpace.s3),
+            Expanded(child: KfBone(height: 92, radius: 12)),
+          ]),
+        ),
+        SizedBox(height: KfSpace.s6),
+        KfListSkeleton(rows: 4),
+      ]);
 }

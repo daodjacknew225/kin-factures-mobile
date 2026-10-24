@@ -1,6 +1,8 @@
 import '../../app/config.dart';
 import '../../core/auth.dart';
+import '../../app/theme.dart';
 import '../../widgets/common.dart';
+import '../../widgets/kit.dart';
 
 // Statuts, libellés et droits des factures : mêmes règles que le site
 // (StatusBadge.jsx, invoices.js, InvoiceDetailPage.jsx). L'API applique les droits de son côté.
@@ -19,6 +21,19 @@ const statusLabels = {
 KfBadge statusBadge(String? status) {
   final (label, tone) = statusLabels[status] ?? statusLabels['draft']!;
   return KfBadge(label, tone: tone, strike: status == 'cancelled');
+}
+
+// Pastille compacte de statut, pour les listes
+KfPill statusPill(String? status) {
+  final (fullLabel, tone) = statusLabels[status] ?? statusLabels['draft']!;
+  final label = status == 'partially_paid' ? 'Partielle' : fullLabel; // libellé court dans les listes
+  final (color, background) = switch (tone) {
+    BadgeTone.paid => (KfColors.brand, KfColors.brandSoft),
+    BadgeTone.pending => (KfColors.pending, KfColors.pendingSoft),
+    BadgeTone.overdue => (KfColors.danger, KfColors.dangerSoft),
+    BadgeTone.neutral => (KfColors.inkMuted, KfColors.surfaceSunken),
+  };
+  return KfPill(label, color: color, background: background, strike: status == 'cancelled');
 }
 
 // Onglets de la liste (display_status)
