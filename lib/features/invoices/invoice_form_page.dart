@@ -276,7 +276,7 @@ class _InvoiceFormPageState extends State<InvoiceFormPage> {
             '${_recurrence != null ? ' La série récurrente démarrera : à chaque échéance, une facture identique sera émise et envoyée au client.' : ''}',
         confirmLabel: 'Émettre la facture',
         extra: email == null || email.isEmpty
-            ? const Padding(
+            ? Padding(
                 padding: EdgeInsets.only(top: KfSpace.s3),
                 child: Text('Ce client n’a pas d’adresse email : partagez ensuite le lien de paiement.',
                     style: TextStyle(fontSize: 13, color: KfColors.inkMuted)),
@@ -353,7 +353,7 @@ class _InvoiceFormPageState extends State<InvoiceFormPage> {
           : SafeArea(
               child: Container(
                 padding: const EdgeInsets.fromLTRB(KfSpace.s4, KfSpace.s3, KfSpace.s4, KfSpace.s3),
-                decoration: const BoxDecoration(color: KfColors.surfaceRaised, border: Border(top: BorderSide(color: KfColors.line))),
+                decoration: BoxDecoration(color: KfColors.surfaceRaised, border: Border(top: BorderSide(color: KfColors.line))),
                 child: Row(children: [
                   Expanded(
                     child: OutlinedButton(
@@ -393,13 +393,13 @@ class _InvoiceFormPageState extends State<InvoiceFormPage> {
         ),
         child: ListTile(
           onTap: _saving ? null : _chooseClient,
-          leading: const Icon(Icons.person_outline, color: KfColors.inkMuted),
+          leading: Icon(Icons.person_outline, color: KfColors.inkMuted),
           title: Text(client?['name'] as String? ?? 'Choisir un client',
               style: TextStyle(fontWeight: FontWeight.w500, color: client == null ? KfColors.inkMuted : KfColors.ink)),
           subtitle: client == null
               ? null
-              : Text((client['email'] as String?) ?? 'Pas d’adresse email', style: const TextStyle(fontSize: 13, color: KfColors.inkMuted)),
-          trailing: const Icon(Icons.chevron_right, color: KfColors.inkMuted),
+              : Text((client['email'] as String?) ?? 'Pas d’adresse email', style: TextStyle(fontSize: 13, color: KfColors.inkMuted)),
+          trailing: Icon(Icons.chevron_right, color: KfColors.inkMuted),
         ),
       ),
       Align(
@@ -428,7 +428,7 @@ class _InvoiceFormPageState extends State<InvoiceFormPage> {
               style: SegmentedButton.styleFrom(
                 selectedBackgroundColor: KfColors.brandSoft,
                 selectedForegroundColor: KfColors.brand,
-                side: const BorderSide(color: KfColors.line),
+                side: BorderSide(color: KfColors.line),
               ),
             ),
             const SizedBox(height: KfSpace.s1),
@@ -484,7 +484,7 @@ class _InvoiceFormPageState extends State<InvoiceFormPage> {
             const Divider(height: KfSpace.s4),
             Row(children: [
               const Expanded(child: Text('Total', style: TextStyle(fontWeight: FontWeight.w600))),
-              KfAmount(total, _currency, size: AmountSize.lg),
+              KfAmount(total, _currency, size: AmountSize.lg, alwaysVisible: true),
             ]),
           ]),
         ),
@@ -495,7 +495,7 @@ class _InvoiceFormPageState extends State<InvoiceFormPage> {
       const KfSectionTitle('Paiement en ligne proposé'),
       Card(
         child: activeProviders.isEmpty
-            ? const Padding(
+            ? Padding(
                 padding: EdgeInsets.all(KfSpace.s4),
                 child: Text('Aucun moyen de paiement en ligne activé (Paramètres › Paiement sur le site).',
                     style: TextStyle(color: KfColors.inkMuted)),
@@ -514,7 +514,7 @@ class _InvoiceFormPageState extends State<InvoiceFormPage> {
                       title: Text(provider['name'] as String, style: const TextStyle(fontWeight: FontWeight.w500)),
                       subtitle: Text(
                         accepted ? (provider['description'] as String? ?? '') : 'N’accepte pas les factures en $_currency',
-                        style: const TextStyle(fontSize: 13, color: KfColors.inkMuted),
+                        style: TextStyle(fontSize: 13, color: KfColors.inkMuted),
                       ),
                     );
                   }),
@@ -568,7 +568,7 @@ class _InvoiceFormPageState extends State<InvoiceFormPage> {
                         ),
                       ),
                     ),
-                    const Icon(Icons.expand_more, color: KfColors.inkMuted),
+                    Icon(Icons.expand_more, color: KfColors.inkMuted),
                   ]),
                 ),
               ),
@@ -581,7 +581,7 @@ class _InvoiceFormPageState extends State<InvoiceFormPage> {
                     : () => setState(() {
                           _lines.removeAt(index).dispose();
                         }),
-                icon: const Icon(Icons.delete_outline, color: KfColors.inkMuted),
+                icon: Icon(Icons.delete_outline, color: KfColors.inkMuted),
               ),
           ]),
           const SizedBox(height: KfSpace.s2),
@@ -614,7 +614,7 @@ class _InvoiceFormPageState extends State<InvoiceFormPage> {
             Padding(
               padding: const EdgeInsets.only(top: KfSpace.s1),
               child: Text('Prix catalogue : ${line.catalogPrice} — saisissez le prix en $_currency.',
-                  style: const TextStyle(fontSize: 12, color: KfColors.pending)),
+                  style: TextStyle(fontSize: 12, color: KfColors.pending)),
             ),
           const SizedBox(height: KfSpace.s2),
           Padding(
@@ -622,9 +622,9 @@ class _InvoiceFormPageState extends State<InvoiceFormPage> {
             child: Row(children: [
               Expanded(
                 child: Text('TVA ${formatDecimal(line.taxRate ?? _defaultTax)} %',
-                    style: const TextStyle(fontSize: 13, color: KfColors.inkMuted)),
+                    style: TextStyle(fontSize: 13, color: KfColors.inkMuted)),
               ),
-              KfAmount(lineTotal, _currency, size: AmountSize.sm),
+              KfAmount(lineTotal, _currency, size: AmountSize.sm, alwaysVisible: true),
             ]),
           ),
         ]),
@@ -635,7 +635,7 @@ class _InvoiceFormPageState extends State<InvoiceFormPage> {
   Widget _totalRow(String label, String value) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(children: [
-          Expanded(child: Text(label, style: const TextStyle(color: KfColors.inkMuted))),
+          Expanded(child: Text(label, style: TextStyle(color: KfColors.inkMuted))),
           Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
         ]),
       );

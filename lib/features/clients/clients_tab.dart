@@ -145,8 +145,8 @@ class _ClientsTabState extends State<ClientsTab> {
                                 subtitle: details.isEmpty
                                     ? null
                                     : Text(details, maxLines: 1, overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(fontSize: 13, color: KfColors.inkMuted)),
-                                trailing: const Icon(Icons.chevron_right, color: KfColors.inkMuted),
+                                        style: TextStyle(fontSize: 13, color: KfColors.inkMuted)),
+                                trailing: Icon(Icons.chevron_right, color: KfColors.inkMuted),
                               ),
                             );
                           },
@@ -168,7 +168,7 @@ class _Initials extends StatelessWidget {
     final initials = words.isEmpty ? '?' : (words.first[0] + (words.length > 1 ? words.last[0] : '')).toUpperCase();
     return CircleAvatar(
       backgroundColor: KfColors.brandSoft,
-      child: Text(initials, style: const TextStyle(color: KfColors.brand, fontWeight: FontWeight.w600, fontSize: 14)),
+      child: Text(initials, style: TextStyle(color: KfColors.brand, fontWeight: FontWeight.w600, fontSize: 14)),
     );
   }
 }

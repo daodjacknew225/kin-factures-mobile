@@ -132,7 +132,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
           style: SegmentedButton.styleFrom(
             selectedBackgroundColor: KfColors.brandSoft,
             selectedForegroundColor: KfColors.brand,
-            side: const BorderSide(color: KfColors.line),
+            side: BorderSide(color: KfColors.line),
           ),
         ),
       ]);
@@ -209,7 +209,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
       bottomNavigationBar: SafeArea(
         child: Container(
           padding: const EdgeInsets.fromLTRB(KfSpace.s4, KfSpace.s3, KfSpace.s4, KfSpace.s3),
-          decoration: const BoxDecoration(color: KfColors.surfaceRaised, border: Border(top: BorderSide(color: KfColors.line))),
+          decoration: BoxDecoration(color: KfColors.surfaceRaised, border: Border(top: BorderSide(color: KfColors.line))),
           child: FilledButton(
             onPressed: _saving ? null : _save,
             child: Text(_saving ? 'Enregistrement…' : (_editing ? 'Enregistrer' : 'Ajouter le produit')),

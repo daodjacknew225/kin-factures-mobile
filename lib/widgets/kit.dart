@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../app/theme.dart';
 
@@ -25,7 +26,7 @@ class KfAvatar extends StatelessWidget {
         height: size,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: inverted ? KfColors.onBrand.withValues(alpha: 0.16) : KfColors.brandSoft,
+          color: inverted ? KfColors.onHero.withValues(alpha: 0.16) : KfColors.brandSoft,
           shape: BoxShape.circle,
         ),
         child: Text(
@@ -33,7 +34,7 @@ class KfAvatar extends StatelessWidget {
           style: TextStyle(
             fontSize: size * 0.36,
             fontWeight: FontWeight.w600,
-            color: inverted ? KfColors.onBrand : KfColors.brand,
+            color: inverted ? KfColors.onHero : KfColors.brand,
           ),
         ),
       );
@@ -54,7 +55,7 @@ class KfOverline extends StatelessWidget {
           Expanded(
             child: Text(
               title.toUpperCase(),
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.6, color: KfColors.inkMuted),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.6, color: KfColors.inkMuted),
             ),
           ),
           if (action != null)
@@ -63,7 +64,7 @@ class KfOverline extends StatelessWidget {
               behavior: HitTestBehavior.opaque,
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Text(action!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: KfColors.brand)),
+                child: Text(action!, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: KfColors.brand)),
               ),
             ),
         ]),
@@ -125,7 +126,7 @@ class KfRow extends StatelessWidget {
                 Text(title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: KfColors.ink)),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: KfColors.ink)),
                 if (subtitle != null && subtitle!.isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(subtitle!,
@@ -183,8 +184,8 @@ class KfQuickAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final background = inverted ? KfColors.onBrand.withValues(alpha: 0.14) : (danger ? KfColors.dangerSoft : KfColors.brandSoft);
-    final foreground = inverted ? KfColors.onBrand : (danger ? KfColors.danger : KfColors.brand);
+    final background = inverted ? KfColors.onHero.withValues(alpha: 0.14) : (danger ? KfColors.dangerSoft : KfColors.brandSoft);
+    final foreground = inverted ? KfColors.onHero : (danger ? KfColors.danger : KfColors.brand);
     return Opacity(
       opacity: onTap == null ? 0.45 : 1,
       child: InkWell(
@@ -208,7 +209,7 @@ class KfQuickAction extends StatelessWidget {
             Text(label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: inverted ? KfColors.onBrand : KfColors.ink)),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: inverted ? KfColors.onHero : KfColors.ink)),
           ]),
         ),
       ),
@@ -300,14 +301,14 @@ class KfEmptyState extends StatelessWidget {
           Container(
             width: 64,
             height: 64,
-            decoration: const BoxDecoration(color: KfColors.brandSoft, shape: BoxShape.circle),
+            decoration: BoxDecoration(color: KfColors.brandSoft, shape: BoxShape.circle),
             child: Icon(icon, color: KfColors.brand, size: 28),
           ),
           const SizedBox(height: KfSpace.s4),
           Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           if (message != null) ...[
             const SizedBox(height: KfSpace.s1),
-            Text(message!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, color: KfColors.inkMuted)),
+            Text(message!, textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: KfColors.inkMuted)),
           ],
           if (action != null) ...[
             const SizedBox(height: KfSpace.s4),
@@ -409,12 +410,12 @@ class KfSearchField extends StatelessWidget {
               filled: true,
               fillColor: KfColors.surfaceSunken,
               contentPadding: EdgeInsets.zero,
-              prefixIcon: const Icon(Icons.search, size: 20, color: KfColors.inkMuted),
+              prefixIcon: Icon(Icons.search, size: 20, color: KfColors.inkMuted),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(KfRadius.lg), borderSide: BorderSide.none),
               enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(KfRadius.lg), borderSide: BorderSide.none),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(KfRadius.lg),
-                borderSide: const BorderSide(color: KfColors.brand, width: 1.5),
+                borderSide: BorderSide(color: KfColors.brand, width: 1.5),
               ),
             ),
           ),
@@ -455,7 +456,7 @@ class KfLabeledField extends StatelessWidget {
     OutlineInputBorder border(Color color, [double width = 1]) =>
         OutlineInputBorder(borderRadius: BorderRadius.circular(KfRadius.lg), borderSide: BorderSide(color: color, width: width));
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: KfColors.inkSoft)),
+      Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: KfColors.inkSoft)),
       const SizedBox(height: 6),
       TextField(
         controller: controller,
@@ -484,4 +485,74 @@ class KfLabeledField extends StatelessWidget {
       ),
     ]);
   }
+}
+
+// Bandeau « hors connexion » (en haut de l'écran)
+class OfflineBanner extends StatelessWidget {
+  const OfflineBanner({super.key});
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: KfColors.ink,
+        borderRadius: BorderRadius.circular(999),
+        elevation: 4,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.wifi_off_rounded, size: 16, color: KfColors.surface),
+            const SizedBox(width: 8),
+            Text('Hors connexion · dernières données affichées', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: KfColors.surface)),
+          ]),
+        ),
+      );
+}
+
+// Ligne de réglage : icône dans une pastille, titre, sous-titre, élément à droite (interrupteur, chevron)
+class KfSettingRow extends StatelessWidget {
+  const KfSettingRow({super.key, required this.icon, required this.title, this.subtitle, this.trailing, this.onTap, this.danger = false});
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+  final bool danger;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: KfSpace.s4, vertical: 12),
+          child: Row(children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(color: danger ? KfColors.dangerSoft : KfColors.brandSoft, borderRadius: BorderRadius.circular(10)),
+              child: Icon(icon, size: 18, color: danger ? KfColors.danger : KfColors.brand),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: danger ? KfColors.danger : KfColors.ink)),
+                if (subtitle != null && subtitle!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(subtitle!, style: TextStyle(fontSize: 13, color: KfColors.inkMuted)),
+                ],
+              ]),
+            ),
+            if (trailing != null) ...[const SizedBox(width: KfSpace.s2), trailing!]
+            else if (onTap != null && !danger)
+              Icon(LucideIcons.chevronRight, size: 18, color: KfColors.inkMuted),
+          ]),
+        ),
+      );
+}
+
+// Poignée en haut des fenêtres du bas de l'écran
+class KfSheetHandle extends StatelessWidget {
+  const KfSheetHandle({super.key});
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Container(width: 36, height: 4, decoration: BoxDecoration(color: KfColors.line, borderRadius: BorderRadius.circular(2))),
+      );
 }

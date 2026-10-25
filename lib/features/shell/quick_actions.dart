@@ -110,7 +110,7 @@ class _MenuRow extends StatelessWidget {
         ),
         title: title,
         subtitle: subtitle,
-        trailing: const Icon(LucideIcons.chevronRight, size: 18, color: KfColors.inkMuted),
+        trailing: Icon(LucideIcons.chevronRight, size: 18, color: KfColors.inkMuted),
         onTap: () {
           Get.back();
           onTap();
@@ -143,7 +143,7 @@ Future<Json?> _pickOpenInvoice(String title, String hint) async {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(KfSpace.s6, 0, KfSpace.s6, KfSpace.s3),
-            child: Text(hint, style: const TextStyle(fontSize: 13, color: KfColors.inkMuted)),
+            child: Text(hint, style: TextStyle(fontSize: 13, color: KfColors.inkMuted)),
           ),
           Flexible(
             child: invoices.isEmpty

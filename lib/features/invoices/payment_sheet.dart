@@ -112,7 +112,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
               style: SegmentedButton.styleFrom(
                 selectedBackgroundColor: KfColors.brandSoft,
                 selectedForegroundColor: KfColors.brand,
-                side: const BorderSide(color: KfColors.line),
+                side: BorderSide(color: KfColors.line),
               ),
             ),
             const SizedBox(height: KfSpace.s4),

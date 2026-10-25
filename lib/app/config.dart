@@ -11,6 +11,13 @@ class AppConfig {
   static const privacyUrl = '$siteUrl/confidentialite';
   static String paymentUrl(String token) => '$siteUrl/payer/$token';
 
+  static const setPasswordUrl = '$siteUrl/definir-mot-de-passe';
+
+  // Support Kin Factures (éditeur : CONGOLESE YOUTH SARL, voir les mentions légales du site)
+  static const supportEmail = 'jean.patrick@x-paycash.com';
+  static const supportPhone = '+243814864186';
+  static const supportWhatsApp = 'https://wa.me/243814864186';
+
   // Verrouillage après inactivité (comme le site : 15 minutes ; raccourci possible pour les essais :
   // --dart-define=IDLE_LOCK_SECONDS=40)
   static const idleLock = Duration(seconds: int.fromEnvironment('IDLE_LOCK_SECONDS', defaultValue: 15 * 60));

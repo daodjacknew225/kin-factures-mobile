@@ -137,7 +137,7 @@ class _ClientDetailPageState extends State<ClientDetailPage> {
             : SafeArea(
                 child: Container(
                   padding: const EdgeInsets.fromLTRB(KfSpace.s4, KfSpace.s3, KfSpace.s4, KfSpace.s3),
-                  decoration: const BoxDecoration(color: KfColors.surfaceRaised, border: Border(top: BorderSide(color: KfColors.line))),
+                  decoration: BoxDecoration(color: KfColors.surfaceRaised, border: Border(top: BorderSide(color: KfColors.line))),
                   child: FilledButton.icon(
                     onPressed: _busy ? null : _newInvoice,
                     icon: const Icon(Icons.add, size: 18),
@@ -188,7 +188,7 @@ class _ClientDetailPageState extends State<ClientDetailPage> {
             padding: const EdgeInsets.all(KfSpace.s4),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('Reste à payer · ${plural(open.length, 'facture ouverte', 'factures ouvertes')}',
-                  style: const TextStyle(fontSize: 13, color: KfColors.inkMuted)),
+                  style: TextStyle(fontSize: 13, color: KfColors.inkMuted)),
               const SizedBox(height: KfSpace.s1),
               for (final currency in ['USD', 'CDF'])
                 if (due(currency) > 0) KfAmount(due(currency), currency, size: AmountSize.lg, color: KfColors.pending),
@@ -196,10 +196,10 @@ class _ClientDetailPageState extends State<ClientDetailPage> {
           ),
         ),
       if (open.isNotEmpty) const SizedBox(height: KfSpace.s4),
-      KfSectionTitle('Factures', trailing: Text('${_invoices.length}', style: const TextStyle(color: KfColors.inkMuted))),
+      KfSectionTitle('Factures', trailing: Text('${_invoices.length}', style: TextStyle(color: KfColors.inkMuted))),
       Card(
         child: _invoices.isEmpty
-            ? const Padding(padding: EdgeInsets.all(KfSpace.s4), child: Text('Aucune facture pour ce client.', style: TextStyle(color: KfColors.inkMuted)))
+            ? Padding(padding: EdgeInsets.all(KfSpace.s4), child: Text('Aucune facture pour ce client.', style: TextStyle(color: KfColors.inkMuted)))
             : Column(children: [
                 for (var i = 0; i < _invoices.length; i++) ...[
                   if (i > 0) const Divider(),
@@ -217,7 +217,7 @@ class _ClientDetailPageState extends State<ClientDetailPage> {
                       child: Row(children: [
                         statusBadge(_invoices[i]['display_status'] as String?),
                         const SizedBox(width: KfSpace.s2),
-                        Text(formatDate(_invoices[i]['issue_date'] as String?), style: const TextStyle(fontSize: 12, color: KfColors.inkMuted)),
+                        Text(formatDate(_invoices[i]['issue_date'] as String?), style: TextStyle(fontSize: 12, color: KfColors.inkMuted)),
                       ]),
                     ),
                     trailing: KfAmount(numOf(_invoices[i]['total']), _invoices[i]['currency'] as String, size: AmountSize.sm),

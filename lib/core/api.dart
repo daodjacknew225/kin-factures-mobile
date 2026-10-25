@@ -1,6 +1,8 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get/get.dart' hide Response;
+import 'package:get_storage/get_storage.dart';
 
 import '../app/config.dart';
 
@@ -28,8 +30,17 @@ class Api extends GetxService {
   // Appelé quand l'API répond 401 (session expirée ou fermée ailleurs)
   void Function()? onUnauthorized;
 
+  // Hors connexion : bandeau affiché, dernières données chargées réaffichées (lectures seulement)
+  final online = true.obs;
+  static const _cacheKey = 'kf_cache';
+  final _box = GetStorage();
+
   Future<Api> init() async {
     _token = await _storage.read(key: _tokenKey);
+    final connectivity = Connectivity();
+    void update(List<ConnectivityResult> results) => online.value = results.any((r) => r != ConnectivityResult.none);
+    connectivity.checkConnectivity().then(update).catchError((_) {});
+    connectivity.onConnectivityChanged.listen(update);
     _dio = Dio(BaseOptions(
       baseUrl: AppConfig.apiUrl,
       connectTimeout: const Duration(seconds: 15),
@@ -46,6 +57,7 @@ class Api extends GetxService {
   Future<void> saveToken(String? token) async {
     _token = token;
     if (token == null) {
+      _box.remove(_cacheKey); // déconnexion : plus aucune donnée de l'entreprise sur le téléphone
       await _storage.delete(key: _tokenKey);
     } else {
       await _storage.write(key: _tokenKey, value: token);
@@ -62,9 +74,29 @@ class Api extends GetxService {
   Future<Response<dynamic>> raw(String method, String path, {Object? body}) => _send(method, path, body: body);
 
   Future<dynamic> _request(String method, String path, {Object? body, Map<String, dynamic>? query}) async {
-    final response = await _send(method, path, body: body, query: query);
+    final cacheId = query == null || query.isEmpty ? path : '$path?${Uri(queryParameters: query.map((k, v) => MapEntry(k, '$v'))).query}';
+    final Response<dynamic> response;
+    try {
+      response = await _send(method, path, body: body, query: query);
+    } on ApiException {
+      // Réseau indisponible : dernière réponse connue pour une lecture
+      final cached = method == 'GET' ? (_box.read<Map>(_cacheKey) ?? const {})[cacheId] : null;
+      if (cached != null) {
+        online.value = false;
+        return cached;
+      }
+      rethrow;
+    }
     final status = response.statusCode ?? 0;
-    if (status >= 200 && status < 300) return response.data;
+    if (status >= 200 && status < 300) {
+      online.value = true;
+      if (method == 'GET' && _token != null) {
+        final cache = Map<String, dynamic>.from(_box.read<Map>(_cacheKey) ?? const {});
+        cache[cacheId] = response.data;
+        _box.write(_cacheKey, cache);
+      }
+      return response.data;
+    }
 
     if (status == 401 && _token != null) onUnauthorized?.call();
     throw errorOf(response);

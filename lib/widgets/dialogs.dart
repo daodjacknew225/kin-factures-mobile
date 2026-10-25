@@ -19,7 +19,7 @@ Future<bool> confirmAction({
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(KfRadius.lg)),
       title: Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
       content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(message, style: const TextStyle(fontSize: 14, height: 20 / 14, color: KfColors.inkSoft)),
+        Text(message, style: TextStyle(fontSize: 14, height: 20 / 14, color: KfColors.inkSoft)),
         ?extra,
       ]),
       actions: [

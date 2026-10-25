@@ -6,6 +6,7 @@ import '../../app/theme.dart';
 import '../../core/api.dart';
 import '../../core/auth.dart';
 import '../../core/format.dart';
+import '../../core/privacy.dart';
 import '../../widgets/common.dart';
 import '../../widgets/kit.dart';
 import '../invoices/invoice_detail_page.dart';
@@ -121,18 +122,22 @@ class _DashboardTabState extends State<DashboardTab> {
         onRefresh: _load,
         edgeOffset: MediaQuery.of(context).padding.top,
         child: ListView(padding: EdgeInsets.zero, children: [
-          _Hero(data: data),
+          // Le bandeau et les tuiles suivent « Masquer les montants »
+          Obx(() {
+            Privacy.to.hidden.value;
+            return _Hero(data: data);
+          }),
           Padding(
             padding: const EdgeInsets.fromLTRB(KfSpace.s4, KfSpace.s4, KfSpace.s4, KfSpace.s8),
             child: data == null
                 ? (_error.isNotEmpty ? KfErrorView(_error, onRetry: _load) : const _BodySkeleton())
                 : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                     if (_error.isNotEmpty) ...[KfAlert(_error), const SizedBox(height: KfSpace.s3)],
-                    Row(children: [
+                    Obx(() => Row(key: ValueKey(Privacy.to.hidden.value), children: [
                       Expanded(child: _Tile(label: 'En attente', dot: KfColors.pending, amounts: data.pending, currency: data.currency, count: data.pendingCount)),
                       const SizedBox(width: KfSpace.s3),
                       Expanded(child: _Tile(label: 'En retard', dot: KfColors.danger, amounts: data.overdue, currency: data.currency, count: data.overdueCount, alert: data.overdueCount > 0)),
-                    ]),
+                    ])),
 
                     KfOverline('À relancer', action: data.overdueCount > 0 ? 'Tout voir' : null, onAction: () => Get.find<ShellController>().select(1)),
                     data.late.isEmpty
@@ -182,8 +187,8 @@ class _DashboardTabState extends State<DashboardTab> {
                             leading: Container(
                               width: 40,
                               height: 40,
-                              decoration: const BoxDecoration(color: KfColors.brandSoft, shape: BoxShape.circle),
-                              child: const Icon(LucideIcons.arrowDownLeft, size: 20, color: KfColors.brand),
+                              decoration: BoxDecoration(color: KfColors.brandSoft, shape: BoxShape.circle),
+                              child: Icon(LucideIcons.arrowDownLeft, size: 20, color: KfColors.brand),
                             ),
                             title: payment['client_name'] as String? ?? '—',
                             subtitle:
@@ -215,7 +220,7 @@ class _Hero extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [KfColors.brandHover, KfColors.brand],
+          colors: [KfColors.heroStart, KfColors.heroEnd],
         ),
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
       ),
@@ -228,11 +233,11 @@ class _Hero extends StatelessWidget {
                     Auth.to.companyName.value.isEmpty ? 'Kin Factures' : Auth.to.companyName.value,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: KfColors.onBrand),
+                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: KfColors.onHero),
                   ),
                   Text(
                     Auth.to.firstName.isEmpty ? 'Bonjour' : 'Bonjour ${Auth.to.firstName}',
-                    style: TextStyle(fontSize: 13, color: KfColors.onBrand.withValues(alpha: 0.75)),
+                    style: TextStyle(fontSize: 13, color: KfColors.onHero.withValues(alpha: 0.75)),
                   ),
                 ])),
           ),
@@ -242,24 +247,37 @@ class _Hero extends StatelessWidget {
           ),
         ]),
         const SizedBox(height: KfSpace.s6),
-        Text('Encaissé en ${currentMonthLabel()}', style: TextStyle(fontSize: 13, color: KfColors.onBrand.withValues(alpha: 0.75))),
+        Row(children: [
+          Text('Encaissé en ${currentMonthLabel()}', style: TextStyle(fontSize: 13, color: KfColors.onHero.withValues(alpha: 0.75))),
+          const SizedBox(width: KfSpace.s1),
+          // Œil : masquer / afficher les montants
+          InkResponse(
+            onTap: Privacy.to.toggle,
+            radius: 20,
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Icon(Privacy.to.hidden.value ? LucideIcons.eyeOff : LucideIcons.eye,
+                  size: 16, color: KfColors.onHero.withValues(alpha: 0.75), semanticLabel: 'Masquer ou afficher les montants'),
+            ),
+          ),
+        ]),
         const SizedBox(height: KfSpace.s1),
         if (data == null)
-          KfSkeleton(child: KfBone(width: 180, height: 36, radius: 8, color: KfColors.onBrand.withValues(alpha: 0.18)))
+          KfSkeleton(child: KfBone(width: 180, height: 36, radius: 8, color: KfColors.onHero.withValues(alpha: 0.18)))
         else
           Text.rich(
             TextSpan(children: [
-              TextSpan(text: formatNumber(data.paid[data.currency] ?? 0)),
-              TextSpan(text: ' ${data.currency}', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: KfColors.onBrand.withValues(alpha: 0.7))),
+              TextSpan(text: Privacy.to.hidden.value ? '•••••' : formatNumber(data.paid[data.currency] ?? 0)),
+              TextSpan(text: ' ${data.currency}', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: KfColors.onHero.withValues(alpha: 0.7))),
             ]),
-            style: const TextStyle(fontSize: 36, height: 44 / 36, fontWeight: FontWeight.w700, letterSpacing: -0.5, color: KfColors.onBrand,
+            style: const TextStyle(fontSize: 36, height: 44 / 36, fontWeight: FontWeight.w700, letterSpacing: -0.5, color: KfColors.onHero,
                 fontFeatures: [FontFeature.tabularFigures()]),
           ),
         for (final other in others)
-          Text(formatAmount(other.value, other.key), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: KfColors.onBrand.withValues(alpha: 0.85))),
+          Text(shownAmount(other.value, other.key), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: KfColors.onHero.withValues(alpha: 0.85))),
         if (data != null)
           Text('${plural(data.paidCount, 'facture soldée', 'factures soldées')} ce mois',
-              style: TextStyle(fontSize: 13, color: KfColors.onBrand.withValues(alpha: 0.75))),
+              style: TextStyle(fontSize: 13, color: KfColors.onHero.withValues(alpha: 0.75))),
         const SizedBox(height: KfSpace.s6),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Expanded(
@@ -310,7 +328,7 @@ class _Tile extends StatelessWidget {
         Row(children: [
           Container(width: 8, height: 8, decoration: BoxDecoration(color: dot, shape: BoxShape.circle)),
           const SizedBox(width: 6),
-          Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: KfColors.inkSoft)),
+          Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: KfColors.inkSoft)),
         ]),
         const SizedBox(height: KfSpace.s2),
         FittedBox(
@@ -318,17 +336,17 @@ class _Tile extends StatelessWidget {
           alignment: Alignment.centerLeft,
           child: Text.rich(
             TextSpan(children: [
-              TextSpan(text: formatNumber(amounts[currency] ?? 0)),
-              TextSpan(text: ' $currency', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: KfColors.inkMuted)),
+              TextSpan(text: Privacy.to.hidden.value ? '•••••' : formatNumber(amounts[currency] ?? 0)),
+              TextSpan(text: ' $currency', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: KfColors.inkMuted)),
             ]),
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: alert ? KfColors.danger : KfColors.ink,
                 fontFeatures: const [FontFeature.tabularFigures()]),
           ),
         ),
         for (final other in others)
-          Text(formatAmount(other.value, other.key), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: KfColors.inkSoft)),
+          Text(shownAmount(other.value, other.key), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: KfColors.inkSoft)),
         const SizedBox(height: 2),
-        Text(plural(count, 'facture'), style: const TextStyle(fontSize: 12, color: KfColors.inkMuted)),
+        Text(plural(count, 'facture'), style: TextStyle(fontSize: 12, color: KfColors.inkMuted)),
       ]),
     );
   }
@@ -338,7 +356,7 @@ class _AllGood extends StatelessWidget {
   const _AllGood();
 
   @override
-  Widget build(BuildContext context) => const KfGroup(children: [
+  Widget build(BuildContext context) => KfGroup(children: [
         KfRow(
           leading: CircleAvatar(radius: 20, backgroundColor: KfColors.brandSoft, child: Icon(LucideIcons.circleCheck, size: 20, color: KfColors.brand)),
           title: 'Aucune facture en retard',

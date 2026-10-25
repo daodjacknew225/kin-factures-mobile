@@ -70,13 +70,13 @@ class _LockScreenState extends State<LockScreen> {
               width: double.infinity,
               padding: EdgeInsets.fromLTRB(KfSpace.s6, top + KfSpace.s8, KfSpace.s6, 72),
               decoration: const BoxDecoration(
-                gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [KfColors.brandHover, KfColors.brand]),
+                gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [KfColors.heroStart, KfColors.heroEnd]),
               ),
               child: Column(children: [
                 KfAvatar(Auth.to.name, size: 72, inverted: true),
                 const SizedBox(height: KfSpace.s4),
-                Text(Auth.to.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: KfColors.onBrand)),
-                Text(Auth.to.email, style: TextStyle(fontSize: 14, color: KfColors.onBrand.withValues(alpha: 0.8))),
+                Text(Auth.to.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: KfColors.onHero)),
+                Text(Auth.to.email, style: TextStyle(fontSize: 14, color: KfColors.onHero.withValues(alpha: 0.8))),
               ]),
             ),
             Transform.translate(
@@ -91,13 +91,13 @@ class _LockScreenState extends State<LockScreen> {
                     boxShadow: [BoxShadow(color: KfColors.ink.withValues(alpha: 0.08), blurRadius: 24, offset: const Offset(0, 8))],
                   ),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                    const Row(children: [
+                    Row(children: [
                       Icon(LucideIcons.lock, size: 20, color: KfColors.brand),
                       SizedBox(width: KfSpace.s2),
                       Text('Session verrouillée', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
                     ]),
                     const SizedBox(height: KfSpace.s1),
-                    const Text(
+                    Text(
                       'Après 15 minutes sans activité, Kin Factures se verrouille pour protéger vos données.',
                       style: TextStyle(fontSize: 14, color: KfColors.inkMuted),
                     ),

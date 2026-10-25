@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../app/theme.dart';
+import 'package:get/get.dart';
+
 import '../core/format.dart';
+import '../core/privacy.dart';
 
 // Composants partagés, équivalents des classes kf- du site (kf-badge, kf-amount, kf-alert…)
 
@@ -61,11 +64,12 @@ enum AmountSize { sm, md, lg, xl }
 
 // Montant (kf-amount) : chiffres alignés, devise en gris
 class KfAmount extends StatelessWidget {
-  const KfAmount(this.value, this.currency, {super.key, this.size = AmountSize.md, this.color});
+  const KfAmount(this.value, this.currency, {super.key, this.size = AmountSize.md, this.color, this.alwaysVisible = false});
   final num? value;
   final String currency;
   final AmountSize size;
   final Color? color;
+  final bool alwaysVisible; // formulaires de saisie : jamais masqué
 
   @override
   Widget build(BuildContext context) {
@@ -75,10 +79,10 @@ class KfAmount extends StatelessWidget {
       AmountSize.lg => (24.0, FontWeight.w600),
       AmountSize.xl => (32.0, FontWeight.w600),
     };
-    return Text.rich(
+    return Obx(() => Text.rich(
       TextSpan(children: [
-        TextSpan(text: formatNumber(value)),
-        TextSpan(text: ' $currency', style: const TextStyle(fontWeight: FontWeight.w500, color: KfColors.inkMuted)),
+        TextSpan(text: !alwaysVisible && Privacy.to.hidden.value ? '•••••' : formatNumber(value)),
+        TextSpan(text: ' $currency', style: TextStyle(fontWeight: FontWeight.w500, color: KfColors.inkMuted)),
       ]),
       style: TextStyle(
         fontSize: fontSize,
@@ -87,9 +91,12 @@ class KfAmount extends StatelessWidget {
         fontFeatures: const [FontFeature.tabularFigures()],
       ),
       maxLines: 1,
-    );
+    ));
   }
 }
+
+// Montant en texte, masqué si « Masquer les montants » est actif
+String shownAmount(num? value, String currency) => Privacy.to.hidden.value ? '••••• $currency' : formatAmount(value, currency);
 
 enum AlertTone { success, danger, pending }
 
@@ -120,7 +127,7 @@ class KfLoader extends StatelessWidget {
   const KfLoader({super.key});
 
   @override
-  Widget build(BuildContext context) => const Center(
+  Widget build(BuildContext context) => Center(
         child: Padding(
           padding: EdgeInsets.all(KfSpace.s8),
           child: SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 3, color: KfColors.brand)),
@@ -160,7 +167,7 @@ class KfEmpty extends StatelessWidget {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Icon(icon, size: 40, color: KfColors.inkMuted),
             const SizedBox(height: KfSpace.s3),
-            Text(message, textAlign: TextAlign.center, style: const TextStyle(color: KfColors.inkMuted)),
+            Text(message, textAlign: TextAlign.center, style: TextStyle(color: KfColors.inkMuted)),
           ]),
         ),
       );

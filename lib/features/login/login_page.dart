@@ -136,7 +136,7 @@ class _LoginPageState extends State<LoginPage> {
               width: double.infinity,
               padding: EdgeInsets.fromLTRB(KfSpace.s6, top + KfSpace.s8, KfSpace.s6, 72),
               decoration: const BoxDecoration(
-                gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [KfColors.brandHover, KfColors.brand]),
+                gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [KfColors.heroStart, KfColors.heroEnd]),
               ),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
@@ -144,21 +144,21 @@ class _LoginPageState extends State<LoginPage> {
                     width: 44,
                     height: 44,
                     padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(color: KfColors.onBrand, borderRadius: BorderRadius.circular(12)),
+                    decoration: BoxDecoration(color: KfColors.onHero, borderRadius: BorderRadius.circular(12)),
                     child: SvgPicture.asset('assets/logo-kin-factures-icone.svg'),
                   ),
                   const SizedBox(width: 12),
-                  const Text('Kin Factures', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: KfColors.onBrand)),
+                  const Text('Kin Factures', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: KfColors.onHero)),
                 ]),
                 const SizedBox(height: KfSpace.s8),
                 const Text(
                   'Facturez et encaissez,\noù que vous soyez.',
-                  style: TextStyle(fontSize: 28, height: 34 / 28, fontWeight: FontWeight.w700, letterSpacing: -0.5, color: KfColors.onBrand),
+                  style: TextStyle(fontSize: 28, height: 34 / 28, fontWeight: FontWeight.w700, letterSpacing: -0.5, color: KfColors.onHero),
                 ),
                 const SizedBox(height: KfSpace.s2),
                 Text(
                   'Factures, liens de paiement et encaissements de votre entreprise, dans votre poche.',
-                  style: TextStyle(fontSize: 14, height: 20 / 14, color: KfColors.onBrand.withValues(alpha: 0.8)),
+                  style: TextStyle(fontSize: 14, height: 20 / 14, color: KfColors.onHero.withValues(alpha: 0.8)),
                 ),
               ]),
             ),
@@ -179,7 +179,7 @@ class _LoginPageState extends State<LoginPage> {
                     child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                       const Text('Connexion', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
                       const SizedBox(height: 2),
-                      const Text('Heureux de vous revoir.', style: TextStyle(fontSize: 14, color: KfColors.inkMuted)),
+                      Text('Heureux de vous revoir.', style: TextStyle(fontSize: 14, color: KfColors.inkMuted)),
                       const SizedBox(height: KfSpace.s6),
                       if (_notice != null) ...[KfAlert(_notice, tone: AlertTone.pending), const SizedBox(height: KfSpace.s4)],
                       KfLabeledField(
@@ -219,7 +219,7 @@ class _LoginPageState extends State<LoginPage> {
                         onPressed: _submitting ? null : _submit,
                         style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
                         child: _submitting
-                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.4, color: KfColors.onBrand))
+                            ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.4, color: KfColors.onBrand))
                             : const Text('Se connecter', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                       ),
                       if (_biometric) ...[
@@ -227,7 +227,7 @@ class _LoginPageState extends State<LoginPage> {
                         OutlinedButton.icon(
                           onPressed: _submitting ? null : _signInWithBiometric,
                           style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-                          icon: const Icon(LucideIcons.fingerprint, color: KfColors.brand),
+                          icon: Icon(LucideIcons.fingerprint, color: KfColors.brand),
                           label: const Text('Se connecter avec l’empreinte', style: TextStyle(fontWeight: FontWeight.w600)),
                         ),
                       ],
@@ -243,13 +243,13 @@ class _LoginPageState extends State<LoginPage> {
                 padding: const EdgeInsets.symmetric(horizontal: KfSpace.s6),
                 child: Column(children: [
                   Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    const Text('Pas encore de compte ?', style: TextStyle(fontSize: 14, color: KfColors.inkMuted)),
+                    Text('Pas encore de compte ?', style: TextStyle(fontSize: 14, color: KfColors.inkMuted)),
                     TextButton(
                       onPressed: () => launchUrl(Uri.parse(AppConfig.signupUrl), mode: LaunchMode.externalApplication),
                       child: const Text('Créer mon compte', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                     ),
                   ]),
-                  const Text(
+                  Text(
                     'Collaborateur d’une entreprise déjà inscrite ? Demandez une invitation à son administrateur.',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 12, color: KfColors.inkMuted),

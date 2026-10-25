@@ -90,7 +90,7 @@ class _InvoicesTabState extends State<InvoicesTab> {
                   ? null
                   : Text(
                       dueText.isEmpty ? 'Tout est encaissé' : 'À encaisser : $dueText',
-                      style: const TextStyle(fontSize: 14, color: KfColors.inkMuted),
+                      style: TextStyle(fontSize: 14, color: KfColors.inkMuted),
                     ),
             ),
           ),

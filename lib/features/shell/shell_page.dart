@@ -8,6 +8,7 @@ import '../clients/clients_tab.dart';
 import '../dashboard/dashboard_tab.dart';
 import '../invoices/invoices_tab.dart';
 import '../more/more_tab.dart';
+import '../../core/theme_controller.dart';
 import 'quick_actions.dart';
 
 // Écran principal : menu du bas (Accueil, Factures, « + », Clients, Plus). Chaque onglet garde son
@@ -37,7 +38,7 @@ class ShellPage extends StatelessWidget {
     final shell = Get.put(ShellController());
     return Obx(() => AnnotatedRegion<SystemUiOverlayStyle>(
           // Accueil : bandeau vert foncé sous la barre d'état (icônes claires)
-          value: shell.index.value == 0 ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+          value: shell.index.value == 0 ? SystemUiOverlayStyle.light : ThemeController.statusBarStyle,
           child: Scaffold(
             body: IndexedStack(
               index: shell.index.value,
@@ -56,7 +57,7 @@ class _BottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: KfColors.surfaceRaised,
           border: Border(top: BorderSide(color: KfColors.line)),
         ),
@@ -85,7 +86,7 @@ class _BottomBar extends StatelessWidget {
                           shape: BoxShape.circle,
                           boxShadow: [BoxShadow(color: KfColors.brand.withValues(alpha: 0.35), blurRadius: 12, offset: const Offset(0, 4))],
                         ),
-                        child: const Icon(LucideIcons.plus, color: KfColors.onBrand, size: 26),
+                        child: Icon(LucideIcons.plus, color: KfColors.onBrand, size: 26),
                       ),
                     ),
                   ),

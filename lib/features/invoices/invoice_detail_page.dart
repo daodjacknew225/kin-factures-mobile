@@ -250,7 +250,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
             for (var i = 0; i < payments.length; i++) ...[
               if (i > 0) const Divider(),
               ListTile(
-                leading: const Icon(Icons.check_circle_outline, color: KfColors.brand),
+                leading: Icon(Icons.check_circle_outline, color: KfColors.brand),
                 title: Text(paymentMethodLabels[payments[i]['method']] ?? '${payments[i]['method']}',
                     style: const TextStyle(fontWeight: FontWeight.w500)),
                 subtitle: Text(formatDateTime(payments[i]['paid_at'] as String? ?? payments[i]['created_at'] as String?),
@@ -284,7 +284,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
   Widget _infoRow(String label, String value, {bool strong = false, bool danger = false}) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(children: [
-          Expanded(child: Text(label, style: const TextStyle(color: KfColors.inkMuted))),
+          Expanded(child: Text(label, style: TextStyle(color: KfColors.inkMuted))),
           Text(value,
               style: TextStyle(
                 fontWeight: strong ? FontWeight.w600 : FontWeight.w500,
@@ -329,7 +329,7 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
     return SafeArea(
       child: Container(
         padding: const EdgeInsets.fromLTRB(KfSpace.s4, KfSpace.s3, KfSpace.s4, KfSpace.s3),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: KfColors.surfaceRaised,
           border: Border(top: BorderSide(color: KfColors.line)),
         ),

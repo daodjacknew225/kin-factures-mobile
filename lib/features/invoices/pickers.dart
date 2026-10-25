@@ -105,7 +105,7 @@ class _PickerSheetState extends State<_PickerSheet> {
                         return ListTile(
                           contentPadding: const EdgeInsets.symmetric(horizontal: KfSpace.s6),
                           title: Text(widget.label(item), style: const TextStyle(fontWeight: FontWeight.w500)),
-                          subtitle: subtitle.isEmpty ? null : Text(subtitle, style: const TextStyle(fontSize: 13, color: KfColors.inkMuted)),
+                          subtitle: subtitle.isEmpty ? null : Text(subtitle, style: TextStyle(fontSize: 13, color: KfColors.inkMuted)),
                           trailing: widget.trailing?.call(item),
                           onTap: () => Get.back(result: item),
                         );

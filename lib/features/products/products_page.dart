@@ -140,7 +140,7 @@ class _ProductsPageState extends State<ProductsPage> {
                                     'par ${product['unit']}',
                                     'TVA ${formatDecimal(numOf(product['tax_rate']))} %',
                                   ].whereType<String>().join(' · '),
-                                  style: const TextStyle(fontSize: 13, color: KfColors.inkMuted),
+                                  style: TextStyle(fontSize: 13, color: KfColors.inkMuted),
                                 ),
                                 trailing: KfAmount(numOf(product['unit_price']), product['currency'] as String, size: AmountSize.sm),
                               ),
