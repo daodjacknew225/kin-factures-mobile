@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../app/theme.dart';
 import '../../widgets/common.dart';
+import '../../widgets/kit.dart';
 import 'invoice_rules.dart';
 
 // Choix d'un client ou d'un produit dans une liste avec recherche (fenêtre en bas de l'écran)
@@ -17,8 +19,8 @@ Future<Json?> pickFromList({
     Get.bottomSheet<Json>(
       _PickerSheet(title: title, items: items, label: label, subtitle: subtitle, trailing: trailing, emptyText: emptyText),
       isScrollControlled: true,
-      backgroundColor: KfColors.surfaceRaised,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(KfRadius.lg))),
+      backgroundColor: KfColors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
     );
 
 Future<Json?> pickClient(List<Json> clients) => pickFromList(
@@ -69,51 +71,50 @@ class _PickerSheetState extends State<_PickerSheet> {
         .toList();
     return SafeArea(
       child: SizedBox(
-        height: MediaQuery.of(context).size.height * 0.75,
-        child: Padding(
-          padding: EdgeInsets.zero, // le clavier est déjà pris en compte par la fenêtre
-          child: Column(children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(KfSpace.s6, KfSpace.s6, KfSpace.s6, KfSpace.s3),
-              child: Row(children: [
-                Expanded(child: Text(widget.title, style: Theme.of(context).textTheme.titleLarge)),
-                IconButton(tooltip: 'Fermer', onPressed: Get.back, icon: const Icon(Icons.close)),
-              ]),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: KfSpace.s6),
-              child: TextField(
-                autofocus: widget.items.length > 8,
-                onChanged: (value) => setState(() => _query = value),
-                decoration: const InputDecoration(
-                  hintText: 'Rechercher…',
-                  prefixIcon: Icon(Icons.search),
-                  contentPadding: EdgeInsets.symmetric(vertical: 10),
-                ),
-              ),
-            ),
-            const SizedBox(height: KfSpace.s2),
-            Expanded(
-              child: rows.isEmpty
-                  ? KfEmpty(widget.items.isEmpty ? widget.emptyText : 'Aucun résultat.')
-                  : ListView.separated(
-                      itemCount: rows.length,
-                      separatorBuilder: (_, _) => const Divider(indent: KfSpace.s6),
-                      itemBuilder: (_, index) {
-                        final item = rows[index];
-                        final subtitle = widget.subtitle?.call(item) ?? '';
-                        return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: KfSpace.s6),
-                          title: Text(widget.label(item), style: const TextStyle(fontWeight: FontWeight.w500)),
-                          subtitle: subtitle.isEmpty ? null : Text(subtitle, style: TextStyle(fontSize: 13, color: KfColors.inkMuted)),
+        height: MediaQuery.of(context).size.height * 0.78,
+        child: Column(children: [
+          const SizedBox(height: KfSpace.s3),
+          const KfSheetHandle(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(KfSpace.s6, KfSpace.s4, KfSpace.s3, KfSpace.s3),
+            child: Row(children: [
+              Expanded(child: Text(widget.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700))),
+              IconButton(tooltip: 'Fermer', onPressed: Get.back, icon: const Icon(LucideIcons.x)),
+            ]),
+          ),
+          KfSearchField(hint: 'Rechercher…', onChanged: (value) => setState(() => _query = value)),
+          const SizedBox(height: KfSpace.s3),
+          Expanded(
+            child: rows.isEmpty
+                ? SingleChildScrollView(
+                    child: KfEmptyState(
+                      icon: LucideIcons.search,
+                      title: widget.items.isEmpty ? 'Liste vide' : 'Aucun résultat',
+                      message: widget.items.isEmpty ? widget.emptyText : null,
+                    ),
+                  )
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(KfSpace.s4, 0, KfSpace.s4, KfSpace.s4),
+                    child: KfGroup(children: [
+                      for (final item in rows)
+                        KfRow(
+                          leading: widget.trailing == null
+                              ? KfAvatar(widget.label(item))
+                              : Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(color: KfColors.brandSoft, borderRadius: BorderRadius.circular(10)),
+                                  child: Icon(LucideIcons.package, size: 18, color: KfColors.brand),
+                                ),
+                          title: widget.label(item),
+                          subtitle: widget.subtitle?.call(item),
                           trailing: widget.trailing?.call(item),
                           onTap: () => Get.back(result: item),
-                        );
-                      },
-                    ),
-            ),
-          ]),
-        ),
+                        ),
+                    ]),
+                  ),
+          ),
+        ]),
       ),
     );
   }

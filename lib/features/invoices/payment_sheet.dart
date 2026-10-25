@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../app/theme.dart';
 import '../../core/api.dart';
 import '../../core/format.dart';
 import '../../widgets/common.dart';
+import '../../widgets/kit.dart';
 import 'invoice_rules.dart';
 
 // Paiement reçu hors ligne (espèces, virement) : POST /invoices/:id/payments (droit « paiements.saisir »).
@@ -13,7 +15,7 @@ Future<bool?> showPaymentSheet(Json invoice) => Get.bottomSheet<bool>(
       _PaymentSheet(invoice: invoice),
       isScrollControlled: true,
       backgroundColor: KfColors.surfaceRaised,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(KfRadius.lg))),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
     );
 
 class _PaymentSheet extends StatefulWidget {
@@ -79,56 +81,76 @@ class _PaymentSheetState extends State<_PaymentSheet> {
   @override
   Widget build(BuildContext context) {
     final currency = widget.invoice['currency'] as String;
-    return Padding(
-      padding: EdgeInsets.zero, // le clavier est déjà pris en compte par la fenêtre
-      child: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(KfSpace.s6),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
-            Text('Enregistrer un paiement', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: KfSpace.s1),
-            Text(
-              'Facture ${widget.invoice['number']} · reste à payer ${formatAmount(numOf(widget.invoice['balance_due']), currency)}',
-              style: Theme.of(context).textTheme.bodySmall,
+    OutlineInputBorder border(Color color, [double width = 1]) =>
+        OutlineInputBorder(borderRadius: BorderRadius.circular(KfRadius.lg), borderSide: BorderSide(color: color, width: width));
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(KfSpace.s6, KfSpace.s3, KfSpace.s6, KfSpace.s6),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+          const KfSheetHandle(),
+          const SizedBox(height: KfSpace.s4),
+          const Text('Encaisser un paiement', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 2),
+          Text(
+            '${widget.invoice['client_name'] ?? ''} · ${widget.invoice['number']} · reste ${formatAmount(numOf(widget.invoice['balance_due']), currency)}',
+            style: TextStyle(fontSize: 13, color: KfColors.inkMuted),
+          ),
+          const SizedBox(height: KfSpace.s6),
+          Text('Montant reçu', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: KfColors.inkSoft)),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _amount,
+            enabled: !_saving,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+            decoration: InputDecoration(
+              suffixText: currency,
+              filled: true,
+              fillColor: KfColors.surface,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              border: border(KfColors.line),
+              enabledBorder: border(KfColors.line),
+              focusedBorder: border(KfColors.brand, 1.5),
             ),
-            const SizedBox(height: KfSpace.s6),
-            TextField(
-              controller: _amount,
-              enabled: !_saving,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(labelText: 'Montant reçu', suffixText: currency),
-            ),
-            const SizedBox(height: KfSpace.s4),
-            const Text('Moyen de paiement', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-            const SizedBox(height: KfSpace.s2),
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'cash', label: Text('Espèces')),
-                ButtonSegment(value: 'bank_transfer', label: Text('Virement')),
-              ],
-              selected: {_method},
-              showSelectedIcon: false,
-              onSelectionChanged: _saving ? null : (value) => setState(() => _method = value.first),
-              style: SegmentedButton.styleFrom(
-                selectedBackgroundColor: KfColors.brandSoft,
-                selectedForegroundColor: KfColors.brand,
-                side: BorderSide(color: KfColors.line),
+          ),
+          const SizedBox(height: KfSpace.s4),
+          Text('Moyen de paiement', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: KfColors.inkSoft)),
+          const SizedBox(height: 6),
+          KfSegmented(
+            options: const [('cash', 'Espèces'), ('bank_transfer', 'Virement')],
+            selected: _method,
+            enabled: !_saving,
+            onChanged: (value) => setState(() => _method = value),
+          ),
+          const SizedBox(height: KfSpace.s4),
+          Text('Reçu le', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: KfColors.inkSoft)),
+          const SizedBox(height: 6),
+          InkWell(
+            onTap: _saving ? null : _pickDate,
+            borderRadius: BorderRadius.circular(KfRadius.lg),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+              decoration: BoxDecoration(
+                color: KfColors.surface,
+                borderRadius: BorderRadius.circular(KfRadius.lg),
+                border: Border.all(color: KfColors.line),
               ),
+              child: Row(children: [
+                Icon(LucideIcons.calendar, size: 18, color: KfColors.inkMuted),
+                const SizedBox(width: 10),
+                Expanded(child: Text(formatDateLong(isoDayOf(_date)), style: const TextStyle(fontSize: 15))),
+                Icon(LucideIcons.chevronDown, size: 18, color: KfColors.inkMuted),
+              ]),
             ),
-            const SizedBox(height: KfSpace.s4),
-            OutlinedButton.icon(
-              onPressed: _saving ? null : _pickDate,
-              icon: const Icon(Icons.event_outlined, size: 18),
-              label: Text('Reçu le ${formatDateLong(isoDayOf(_date))}'),
-            ),
-            const SizedBox(height: KfSpace.s4),
-            if (_error.isNotEmpty) ...[KfAlert(_error), const SizedBox(height: KfSpace.s4)],
-            FilledButton(
-              onPressed: _saving ? null : _save,
-              child: Text(_saving ? 'Enregistrement…' : 'Enregistrer le paiement'),
-            ),
-          ]),
-        ),
+          ),
+          const SizedBox(height: KfSpace.s6),
+          if (_error.isNotEmpty) ...[KfAlert(_error), const SizedBox(height: KfSpace.s4)],
+          FilledButton(
+            onPressed: _saving ? null : _save,
+            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+            child: Text(_saving ? 'Enregistrement…' : 'Enregistrer le paiement', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          ),
+        ]),
       ),
     );
   }

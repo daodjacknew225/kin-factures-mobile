@@ -16,17 +16,24 @@ class KfLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SvgPicture.asset(
-        iconOnly ? 'assets/logo-kin-factures-icone.svg' : 'assets/logo-kin-factures.svg',
-        height: height,
-        semanticsLabel: 'Kin Factures',
-      );
+    iconOnly
+        ? 'assets/logo-kin-factures-icone.svg'
+        : 'assets/logo-kin-factures.svg',
+    height: height,
+    semanticsLabel: 'Kin Factures',
+  );
 }
 
 enum BadgeTone { paid, pending, overdue, neutral }
 
 // Badge de statut (kf-badge) : point coloré + libellé
 class KfBadge extends StatelessWidget {
-  const KfBadge(this.label, {super.key, this.tone = BadgeTone.neutral, this.strike = false});
+  const KfBadge(
+    this.label, {
+    super.key,
+    this.tone = BadgeTone.neutral,
+    this.strike = false,
+  });
   final String label;
   final BadgeTone tone;
   final bool strike;
@@ -41,21 +48,34 @@ class KfBadge extends StatelessWidget {
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: KfSpace.s2, vertical: 2),
-      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(999)),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Container(width: 6, height: 6, decoration: BoxDecoration(color: foreground, shape: BoxShape.circle)),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            height: 16 / 12,
-            fontWeight: FontWeight.w500,
-            color: foreground,
-            decoration: strike ? TextDecoration.lineThrough : null,
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: foreground,
+              shape: BoxShape.circle,
+            ),
           ),
-        ),
-      ]),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              height: 16 / 12,
+              fontWeight: FontWeight.w500,
+              color: foreground,
+              decoration: strike ? TextDecoration.lineThrough : null,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -64,7 +84,14 @@ enum AmountSize { sm, md, lg, xl }
 
 // Montant (kf-amount) : chiffres alignés, devise en gris
 class KfAmount extends StatelessWidget {
-  const KfAmount(this.value, this.currency, {super.key, this.size = AmountSize.md, this.color, this.alwaysVisible = false});
+  const KfAmount(
+    this.value,
+    this.currency, {
+    super.key,
+    this.size = AmountSize.md,
+    this.color,
+    this.alwaysVisible = false,
+  });
   final num? value;
   final String currency;
   final AmountSize size;
@@ -79,24 +106,37 @@ class KfAmount extends StatelessWidget {
       AmountSize.lg => (24.0, FontWeight.w600),
       AmountSize.xl => (32.0, FontWeight.w600),
     };
-    return Obx(() => Text.rich(
-      TextSpan(children: [
-        TextSpan(text: !alwaysVisible && Privacy.to.hidden.value ? '•••••' : formatNumber(value)),
-        TextSpan(text: ' $currency', style: TextStyle(fontWeight: FontWeight.w500, color: KfColors.inkMuted)),
-      ]),
-      style: TextStyle(
-        fontSize: fontSize,
-        fontWeight: weight,
-        color: color ?? KfColors.ink,
-        fontFeatures: const [FontFeature.tabularFigures()],
-      ),
-      maxLines: 1,
-    ));
+    return Obx(() {
+      // Lu dans tous les cas : un bloc réactif doit surveiller au moins une valeur
+      final hidden = Privacy.to.hidden.value && !alwaysVisible;
+      return Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(text: hidden ? '•••••' : formatNumber(value)),
+            TextSpan(
+              text: ' $currency',
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: KfColors.inkMuted,
+              ),
+            ),
+          ],
+        ),
+        style: TextStyle(
+          fontSize: fontSize,
+          fontWeight: weight,
+          color: color ?? KfColors.ink,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
+        maxLines: 1,
+      );
+    });
   }
 }
 
 // Montant en texte, masqué si « Masquer les montants » est actif
-String shownAmount(num? value, String currency) => Privacy.to.hidden.value ? '••••• $currency' : formatAmount(value, currency);
+String shownAmount(num? value, String currency) =>
+    Privacy.to.hidden.value ? '••••• $currency' : formatAmount(value, currency);
 
 enum AlertTone { success, danger, pending }
 
@@ -115,9 +155,18 @@ class KfAlert extends StatelessWidget {
     };
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: KfSpace.s4, vertical: KfSpace.s3),
-      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(KfRadius.md)),
-      child: Text(message, style: TextStyle(fontSize: 13, height: 18 / 13, color: foreground)),
+      padding: const EdgeInsets.symmetric(
+        horizontal: KfSpace.s4,
+        vertical: KfSpace.s3,
+      ),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(KfRadius.md),
+      ),
+      child: Text(
+        message,
+        style: TextStyle(fontSize: 13, height: 18 / 13, color: foreground),
+      ),
     );
   }
 }
@@ -128,11 +177,15 @@ class KfLoader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: EdgeInsets.all(KfSpace.s8),
-          child: SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 3, color: KfColors.brand)),
-        ),
-      );
+    child: Padding(
+      padding: EdgeInsets.all(KfSpace.s8),
+      child: SizedBox(
+        width: 28,
+        height: 28,
+        child: CircularProgressIndicator(strokeWidth: 3, color: KfColors.brand),
+      ),
+    ),
+  );
 }
 
 // Erreur de chargement avec « Réessayer »
@@ -143,15 +196,18 @@ class KfErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(KfSpace.s6),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            KfAlert(message),
-            const SizedBox(height: KfSpace.s4),
-            OutlinedButton(onPressed: onRetry, child: const Text('Réessayer')),
-          ]),
-        ),
-      );
+    child: Padding(
+      padding: const EdgeInsets.all(KfSpace.s6),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          KfAlert(message),
+          const SizedBox(height: KfSpace.s4),
+          OutlinedButton(onPressed: onRetry, child: const Text('Réessayer')),
+        ],
+      ),
+    ),
+  );
 }
 
 // Liste vide
@@ -162,15 +218,22 @@ class KfEmpty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(KfSpace.s8),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, size: 40, color: KfColors.inkMuted),
-            const SizedBox(height: KfSpace.s3),
-            Text(message, textAlign: TextAlign.center, style: TextStyle(color: KfColors.inkMuted)),
-          ]),
-        ),
-      );
+    child: Padding(
+      padding: const EdgeInsets.all(KfSpace.s8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 40, color: KfColors.inkMuted),
+          const SizedBox(height: KfSpace.s3),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: KfColors.inkMuted),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 // Titre de section (section-title du site)
@@ -181,10 +244,19 @@ class KfSectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: KfSpace.s3),
-        child: Row(children: [
-          Expanded(child: Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontSize: 17))),
-          ?trailing,
-        ]),
-      );
+    padding: const EdgeInsets.only(bottom: KfSpace.s3),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontSize: 17),
+          ),
+        ),
+        ?trailing,
+      ],
+    ),
+  );
 }

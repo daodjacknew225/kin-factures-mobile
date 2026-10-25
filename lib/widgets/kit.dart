@@ -438,6 +438,10 @@ class KfLabeledField extends StatelessWidget {
     this.textInputAction,
     this.onSubmitted,
     this.errorText,
+    this.minLines,
+    this.maxLines = 1,
+    this.onChanged,
+    this.textCapitalization = TextCapitalization.none,
   });
   final String label;
   final TextEditingController controller;
@@ -450,6 +454,10 @@ class KfLabeledField extends StatelessWidget {
   final TextInputAction? textInputAction;
   final ValueChanged<String>? onSubmitted;
   final String? errorText;
+  final int? minLines;
+  final int? maxLines;
+  final ValueChanged<String>? onChanged;
+  final TextCapitalization textCapitalization;
 
   @override
   Widget build(BuildContext context) {
@@ -468,6 +476,10 @@ class KfLabeledField extends StatelessWidget {
         autofillHints: autofillHints,
         textInputAction: textInputAction,
         onSubmitted: onSubmitted,
+        onChanged: onChanged,
+        minLines: minLines,
+        maxLines: obscureText ? 1 : maxLines,
+        textCapitalization: textCapitalization,
         style: const TextStyle(fontSize: 15),
         decoration: InputDecoration(
           hintText: hint,
@@ -554,5 +566,119 @@ class KfSheetHandle extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
         child: Container(width: 36, height: 4, decoration: BoxDecoration(color: KfColors.line, borderRadius: BorderRadius.circular(2))),
+      );
+}
+
+// Sélecteur segmenté (devise, type…) : options côte à côte, l'option choisie en blanc sur fond gris
+class KfSegmented extends StatelessWidget {
+  const KfSegmented({super.key, required this.options, required this.selected, required this.onChanged, this.enabled = true});
+  final List<(String id, String label)> options;
+  final String selected;
+  final ValueChanged<String> onChanged;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(color: KfColors.surfaceSunken, borderRadius: BorderRadius.circular(KfRadius.lg)),
+        child: Row(children: [
+          for (final (id, label) in options)
+            Expanded(
+              child: GestureDetector(
+                onTap: !enabled || id == selected
+                    ? null
+                    : () {
+                        HapticFeedback.selectionClick();
+                        onChanged(id);
+                      },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  height: 38,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: id == selected ? KfColors.surfaceRaised : Colors.transparent,
+                    borderRadius: BorderRadius.circular(9),
+                    boxShadow: id == selected ? [BoxShadow(color: KfColors.ink.withValues(alpha: 0.08), blurRadius: 4, offset: const Offset(0, 1))] : null,
+                  ),
+                  child: Text(label,
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: id == selected ? KfColors.ink : KfColors.inkMuted)),
+                ),
+              ),
+            ),
+        ]),
+      );
+}
+
+// Pastilles de choix sur plusieurs lignes (délai de paiement…)
+class KfChoicePills extends StatelessWidget {
+  const KfChoicePills({super.key, required this.options, required this.selected, required this.onChanged, this.enabled = true});
+  final List<(String id, String label)> options;
+  final String selected;
+  final ValueChanged<String> onChanged;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) => Wrap(spacing: KfSpace.s2, runSpacing: KfSpace.s2, children: [
+        for (final (id, label) in options)
+          GestureDetector(
+            onTap: !enabled
+                ? null
+                : () {
+                    HapticFeedback.selectionClick();
+                    onChanged(id);
+                  },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                color: id == selected ? KfColors.brandSoft : KfColors.surfaceRaised,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: id == selected ? KfColors.brand : KfColors.line),
+              ),
+              child: Text(label,
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: id == selected ? KfColors.brand : KfColors.ink)),
+            ),
+          ),
+      ]);
+}
+
+// Bloc de formulaire : titre de section + carte
+class KfFormSection extends StatelessWidget {
+  const KfFormSection({super.key, required this.title, required this.child, this.trailing});
+  final String title;
+  final Widget child;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(KfSpace.s1, KfSpace.s6, KfSpace.s1, KfSpace.s2),
+          child: Row(children: [
+            Expanded(
+              child: Text(title.toUpperCase(),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.6, color: KfColors.inkMuted)),
+            ),
+            ?trailing,
+          ]),
+        ),
+        child,
+      ]);
+}
+
+// Carte blanche arrondie (contenu de formulaire)
+class KfCard extends StatelessWidget {
+  const KfCard({super.key, required this.child, this.padding = const EdgeInsets.all(KfSpace.s4), this.borderColor});
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final Color? borderColor;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: padding,
+        decoration: BoxDecoration(
+          color: KfColors.surfaceRaised,
+          borderRadius: BorderRadius.circular(KfRadius.lg),
+          border: Border.all(color: borderColor ?? KfColors.line),
+        ),
+        child: child,
       );
 }

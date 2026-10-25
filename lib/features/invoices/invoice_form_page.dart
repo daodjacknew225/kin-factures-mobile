@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../app/theme.dart';
 import '../../core/api.dart';
 import '../../core/format.dart';
 import '../../widgets/common.dart';
 import '../../widgets/dialogs.dart';
+import '../../widgets/kit.dart';
 import '../clients/client_form_page.dart';
 import 'invoice_rules.dart';
 import 'pickers.dart';
@@ -341,302 +343,339 @@ class _InvoiceFormPageState extends State<InvoiceFormPage> {
 
   @override
   Widget build(BuildContext context) {
+    final (_, _, total) = _loading || _loadError.isNotEmpty ? (0.0, 0.0, 0.0) : _totals;
     return Scaffold(
-      appBar: AppBar(title: Text(_editing ? 'Modifier le brouillon' : 'Nouvelle facture')),
+      backgroundColor: KfColors.surface,
+      appBar: AppBar(
+        backgroundColor: KfColors.surface,
+        shape: const Border(),
+        title: Text(_editing ? 'Modifier le brouillon' : 'Nouvelle facture'),
+      ),
       body: _loading
-          ? const KfLoader()
+          ? const Padding(padding: EdgeInsets.all(KfSpace.s4), child: KfListSkeleton(rows: 5))
           : _loadError.isNotEmpty
               ? KfErrorView(_loadError, onRetry: _load)
               : _form(),
+      // Récapitulatif fixe : total et boutons
       bottomNavigationBar: _loading || _loadError.isNotEmpty
           ? null
-          : SafeArea(
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(KfSpace.s4, KfSpace.s3, KfSpace.s4, KfSpace.s3),
-                decoration: BoxDecoration(color: KfColors.surfaceRaised, border: Border(top: BorderSide(color: KfColors.line))),
-                child: Row(children: [
-                  Expanded(
-                    child: OutlinedButton(
+          : Container(
+              decoration: BoxDecoration(color: KfColors.surfaceRaised, border: Border(top: BorderSide(color: KfColors.line))),
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(KfSpace.s4, KfSpace.s3, KfSpace.s4, KfSpace.s3),
+                  child: Row(children: [
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                        Text('Total TTC', style: TextStyle(fontSize: 12, color: KfColors.inkMuted)),
+                        // Hauteur fixe : le montant rétrécit s'il est très long
+                        SizedBox(
+                          height: 32,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: KfAmount(total, _currency, size: AmountSize.lg, alwaysVisible: true),
+                          ),
+                        ),
+                      ]),
+                    ),
+                    OutlinedButton(
                       onPressed: _saving ? null : () => _save(issue: false),
+                      style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48), padding: const EdgeInsets.symmetric(horizontal: 14)),
                       child: const Text('Brouillon'),
                     ),
-                  ),
-                  const SizedBox(width: KfSpace.s2),
-                  Expanded(
-                    flex: 2,
-                    child: FilledButton(
+                    const SizedBox(width: KfSpace.s2),
+                    FilledButton(
                       onPressed: _saving ? null : () => _save(issue: true),
-                      child: Text(_saving ? 'Enregistrement…' : 'Émettre la facture'),
+                      style: FilledButton.styleFrom(minimumSize: const Size(0, 48), padding: const EdgeInsets.symmetric(horizontal: 18)),
+                      child: Text(_saving ? 'Envoi…' : 'Émettre'),
                     ),
-                  ),
-                ]),
+                  ]),
+                ),
               ),
             ),
     );
   }
 
   Widget _form() {
-    final (subtotal, tax, total) = _totals;
-    final text = Theme.of(context).textTheme;
+    final (subtotal, tax, _) = _totals;
     final client = _client;
     final terms = {0, 15, 30, numOf(_settings['default_payment_terms_days']).toInt(), _termDays}.where((d) => d >= 0).toList()..sort();
     final activeProviders = _providers.where((p) => p['is_active'] == true).toList();
 
-    return ListView(padding: const EdgeInsets.all(KfSpace.s4), children: [
+    return ListView(padding: const EdgeInsets.fromLTRB(KfSpace.s4, 0, KfSpace.s4, KfSpace.s8), children: [
       // Client
-      const KfSectionTitle('Client'),
-      Card(
-        clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(KfRadius.md),
-          side: BorderSide(color: _errors.containsKey('client') ? KfColors.danger : KfColors.line),
+      KfFormSection(
+        title: 'Client',
+        trailing: GestureDetector(
+          onTap: _saving ? null : _newClient,
+          child: Text('+ Nouveau client', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: KfColors.brand)),
         ),
-        child: ListTile(
-          onTap: _saving ? null : _chooseClient,
-          leading: Icon(Icons.person_outline, color: KfColors.inkMuted),
-          title: Text(client?['name'] as String? ?? 'Choisir un client',
-              style: TextStyle(fontWeight: FontWeight.w500, color: client == null ? KfColors.inkMuted : KfColors.ink)),
-          subtitle: client == null
-              ? null
-              : Text((client['email'] as String?) ?? 'Pas d’adresse email', style: TextStyle(fontSize: 13, color: KfColors.inkMuted)),
-          trailing: Icon(Icons.chevron_right, color: KfColors.inkMuted),
-        ),
+        child: KfGroup(children: [
+          KfRow(
+            leading: client == null
+                ? Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(color: KfColors.surfaceSunken, shape: BoxShape.circle),
+                    child: Icon(LucideIcons.user, size: 20, color: KfColors.inkMuted),
+                  )
+                : KfAvatar(client['name'] as String),
+            title: client?['name'] as String? ?? 'Choisir un client',
+            subtitle: client == null ? 'Obligatoire' : ((client['email'] as String?) ?? 'Pas d’adresse email'),
+            subtitleColor: _errors.containsKey('client') ? KfColors.danger : null,
+            trailing: Icon(LucideIcons.chevronRight, size: 18, color: KfColors.inkMuted),
+            onTap: _saving ? null : _chooseClient,
+          ),
+        ]),
       ),
-      Align(
-        alignment: Alignment.centerLeft,
-        child: TextButton.icon(
-          onPressed: _saving ? null : _newClient,
-          icon: const Icon(Icons.person_add_alt, size: 18),
-          label: const Text('Nouveau client'),
-        ),
-      ),
-      const SizedBox(height: KfSpace.s2),
 
       // Devise et dates
-      const KfSectionTitle('Facture'),
-      Card(
-        child: Padding(
-          padding: const EdgeInsets.all(KfSpace.s4),
+      KfFormSection(
+        title: 'Facture',
+        child: KfCard(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Devise', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-            const SizedBox(height: KfSpace.s2),
-            SegmentedButton<String>(
-              segments: const [ButtonSegment(value: 'USD', label: Text('USD')), ButtonSegment(value: 'CDF', label: Text('CDF'))],
-              selected: {_currency},
-              showSelectedIcon: false,
-              onSelectionChanged: _saving ? null : (value) => _chooseCurrency(value.first),
-              style: SegmentedButton.styleFrom(
-                selectedBackgroundColor: KfColors.brandSoft,
-                selectedForegroundColor: KfColors.brand,
-                side: BorderSide(color: KfColors.line),
-              ),
+            _label('Devise (pour toutes les lignes)'),
+            KfSegmented(
+              options: const [('USD', 'USD'), ('CDF', 'CDF')],
+              selected: _currency,
+              enabled: !_saving,
+              onChanged: _chooseCurrency,
             ),
-            const SizedBox(height: KfSpace.s1),
-            Text('S’applique à toutes les lignes.', style: text.bodySmall),
             if (_currencyChanged) ...[
               const SizedBox(height: KfSpace.s2),
               const KfAlert('Devise modifiée : les prix déjà saisis ne sont pas convertis. Vérifiez-les.', tone: AlertTone.pending),
             ],
             const SizedBox(height: KfSpace.s4),
-            OutlinedButton.icon(
-              onPressed: _saving ? null : _pickIssueDate,
-              icon: const Icon(Icons.event_outlined, size: 18),
-              label: Text('Émise le ${formatDateLong(_issueDate)}'),
+            _label('Date d’émission'),
+            InkWell(
+              onTap: _saving ? null : _pickIssueDate,
+              borderRadius: BorderRadius.circular(KfRadius.lg),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                decoration: BoxDecoration(
+                  color: KfColors.surface,
+                  borderRadius: BorderRadius.circular(KfRadius.lg),
+                  border: Border.all(color: KfColors.line),
+                ),
+                child: Row(children: [
+                  Icon(LucideIcons.calendar, size: 18, color: KfColors.inkMuted),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(formatDateLong(_issueDate), style: const TextStyle(fontSize: 15))),
+                  Icon(LucideIcons.chevronDown, size: 18, color: KfColors.inkMuted),
+                ]),
+              ),
             ),
             const SizedBox(height: KfSpace.s4),
-            const Text('Délai de paiement', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+            _label('Délai de paiement'),
+            KfChoicePills(
+              options: [for (final days in terms) ('$days', days == 0 ? 'À réception' : '$days jours')],
+              selected: '$_termDays',
+              enabled: !_saving,
+              onChanged: (value) => setState(() => _termDays = int.parse(value)),
+            ),
             const SizedBox(height: KfSpace.s2),
-            Wrap(spacing: KfSpace.s2, runSpacing: KfSpace.s2, children: [
-              for (final days in terms)
-                ChoiceChip(
-                  label: Text(days == 0 ? 'À réception' : '$days jours'),
-                  selected: _termDays == days,
-                  onSelected: _saving ? null : (_) => setState(() => _termDays = days),
-                  selectedColor: KfColors.brandSoft,
-                  backgroundColor: KfColors.surfaceRaised,
-                  side: BorderSide(color: _termDays == days ? KfColors.brand : KfColors.line),
-                  labelStyle: TextStyle(color: _termDays == days ? KfColors.brand : KfColors.ink, fontWeight: FontWeight.w500),
-                  showCheckmark: false,
-                ),
-            ]),
-            const SizedBox(height: KfSpace.s1),
-            Text('Échéance le ${formatDateLong(_dueDate)}', style: text.bodySmall),
+            Text('Échéance le ${formatDateLong(_dueDate)}', style: TextStyle(fontSize: 13, color: KfColors.inkMuted)),
           ]),
         ),
       ),
-      const SizedBox(height: KfSpace.s6),
 
       // Lignes
-      KfSectionTitle('Produits et services', trailing: Text(_currency, style: text.bodySmall)),
-      for (var i = 0; i < _lines.length; i++) ...[_lineCard(i), const SizedBox(height: KfSpace.s2)],
-      OutlinedButton.icon(
-        onPressed: _saving ? null : () => setState(() => _lines.add(_Line())),
-        icon: const Icon(Icons.add, size: 18),
-        label: const Text('Ajouter une ligne'),
-      ),
-      const SizedBox(height: KfSpace.s4),
-      Card(
-        child: Padding(
-          padding: const EdgeInsets.all(KfSpace.s4),
-          child: Column(children: [
-            _totalRow('Sous-total', formatAmount(subtotal, _currency)),
-            _totalRow('TVA', formatAmount(tax, _currency)),
-            const Divider(height: KfSpace.s4),
-            Row(children: [
-              const Expanded(child: Text('Total', style: TextStyle(fontWeight: FontWeight.w600))),
-              KfAmount(total, _currency, size: AmountSize.lg, alwaysVisible: true),
+      KfFormSection(
+        title: 'Produits et services',
+        trailing: Text(_currency, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: KfColors.inkMuted)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          for (var i = 0; i < _lines.length; i++) ...[_lineCard(i), const SizedBox(height: KfSpace.s2)],
+          OutlinedButton.icon(
+            onPressed: _saving ? null : () => setState(() => _lines.add(_Line())),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(46),
+              side: BorderSide(color: KfColors.line),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(KfRadius.lg)),
+            ),
+            icon: Icon(LucideIcons.plus, size: 18, color: KfColors.brand),
+            label: Text('Ajouter une ligne', style: TextStyle(color: KfColors.brand, fontWeight: FontWeight.w600)),
+          ),
+          const SizedBox(height: KfSpace.s2),
+          KfCard(
+            child: Column(children: [
+              _totalRow('Sous-total', formatAmount(subtotal, _currency)),
+              _totalRow('TVA', formatAmount(tax, _currency)),
             ]),
-          ]),
-        ),
+          ),
+        ]),
       ),
-      const SizedBox(height: KfSpace.s6),
 
       // Moyens de paiement
-      const KfSectionTitle('Paiement en ligne proposé'),
-      Card(
+      KfFormSection(
+        title: 'Paiement en ligne proposé',
         child: activeProviders.isEmpty
-            ? Padding(
-                padding: EdgeInsets.all(KfSpace.s4),
+            ? KfCard(
                 child: Text('Aucun moyen de paiement en ligne activé (Paramètres › Paiement sur le site).',
-                    style: TextStyle(color: KfColors.inkMuted)),
+                    style: TextStyle(fontSize: 14, color: KfColors.inkMuted)),
               )
-            : Column(children: [
+            : KfGroup(dividerIndent: 64, children: [
                 for (final provider in activeProviders)
                   Builder(builder: (_) {
                     final id = provider['id'] as String;
                     final accepted = ((provider['currencies'] as List?) ?? const []).contains(_currency);
-                    return SwitchListTile(
-                      value: accepted && _paymentMethods.contains(id),
-                      onChanged: !accepted || _saving
-                          ? null
-                          : (on) => setState(() => on ? _paymentMethods.add(id) : _paymentMethods.remove(id)),
-                      activeThumbColor: KfColors.brand,
-                      title: Text(provider['name'] as String, style: const TextStyle(fontWeight: FontWeight.w500)),
-                      subtitle: Text(
-                        accepted ? (provider['description'] as String? ?? '') : 'N’accepte pas les factures en $_currency',
-                        style: TextStyle(fontSize: 13, color: KfColors.inkMuted),
+                    return KfSettingRow(
+                      icon: id == 'paypal' ? LucideIcons.wallet : LucideIcons.creditCard,
+                      title: provider['name'] as String,
+                      subtitle: accepted ? (provider['description'] as String? ?? '') : 'N’accepte pas les factures en $_currency',
+                      trailing: Switch(
+                        value: accepted && _paymentMethods.contains(id),
+                        activeThumbColor: KfColors.brand,
+                        onChanged: !accepted || _saving
+                            ? null
+                            : (on) => setState(() => on ? _paymentMethods.add(id) : _paymentMethods.remove(id)),
                       ),
                     );
                   }),
               ]),
       ),
-      const SizedBox(height: KfSpace.s6),
 
       // Notes
-      const KfSectionTitle('Notes'),
-      TextField(
-        controller: _notes,
-        enabled: !_saving,
-        minLines: 2,
-        maxLines: 5,
-        decoration: const InputDecoration(hintText: 'Conditions, coordonnées bancaires… (visible sur la facture)'),
+      KfFormSection(
+        title: 'Notes',
+        child: TextField(
+          controller: _notes,
+          enabled: !_saving,
+          minLines: 3,
+          maxLines: 6,
+          style: const TextStyle(fontSize: 15),
+          decoration: _inputDecoration('Conditions, coordonnées bancaires… (visible sur la facture)'),
+        ),
       ),
       if (_recurrence != null) ...[
         const SizedBox(height: KfSpace.s4),
         const KfAlert('Ce brouillon a une récurrence, réglée sur le site : elle est conservée.', tone: AlertTone.pending),
       ],
       if (_formError.isNotEmpty) ...[const SizedBox(height: KfSpace.s4), KfAlert(_formError)],
-      const SizedBox(height: KfSpace.s6),
     ]);
+  }
+
+  Widget _label(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Text(text, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: KfColors.inkSoft)),
+      );
+
+  InputDecoration _inputDecoration(String? hint, {String? suffix}) {
+    OutlineInputBorder border(Color color, [double width = 1]) =>
+        OutlineInputBorder(borderRadius: BorderRadius.circular(KfRadius.lg), borderSide: BorderSide(color: color, width: width));
+    return InputDecoration(
+      hintText: hint,
+      suffixText: suffix,
+      filled: true,
+      fillColor: KfColors.surface,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      border: border(KfColors.line),
+      enabledBorder: border(KfColors.line),
+      focusedBorder: border(KfColors.brand, 1.5),
+    );
   }
 
   Widget _lineCard(int index) {
     final line = _lines[index];
     final lineTotal = round2(line.qty * line.price);
     final hasError = _errors.containsKey('lines');
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(KfRadius.md),
-        side: BorderSide(color: hasError ? KfColors.danger : KfColors.line),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(KfSpace.s4, KfSpace.s2, KfSpace.s2, KfSpace.s4),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Expanded(
-              child: InkWell(
-                onTap: _saving ? null : () => _chooseProduct(line),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: KfSpace.s2),
-                  child: Row(children: [
-                    Expanded(
-                      child: Text(
-                        line.description.isEmpty ? 'Choisir un produit' : line.description,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                          color: line.description.isEmpty ? KfColors.brand : KfColors.ink,
-                        ),
+    return KfCard(
+      borderColor: hasError ? KfColors.danger : null,
+      padding: const EdgeInsets.fromLTRB(KfSpace.s4, KfSpace.s2, KfSpace.s2, KfSpace.s4),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(
+            child: InkWell(
+              onTap: _saving ? null : () => _chooseProduct(line),
+              borderRadius: BorderRadius.circular(KfRadius.md),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Row(children: [
+                  Icon(line.description.isEmpty ? LucideIcons.packagePlus : LucideIcons.package,
+                      size: 18, color: line.description.isEmpty ? KfColors.brand : KfColors.inkMuted),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      line.description.isEmpty ? 'Choisir un produit ou service' : line.description,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: line.description.isEmpty ? KfColors.brand : KfColors.ink,
                       ),
                     ),
-                    Icon(Icons.expand_more, color: KfColors.inkMuted),
-                  ]),
-                ),
+                  ),
+                  Icon(LucideIcons.chevronDown, size: 18, color: KfColors.inkMuted),
+                ]),
               ),
             ),
-            if (_lines.length > 1)
-              IconButton(
-                tooltip: 'Retirer la ligne',
-                onPressed: _saving
-                    ? null
-                    : () => setState(() {
-                          _lines.removeAt(index).dispose();
-                        }),
-                icon: Icon(Icons.delete_outline, color: KfColors.inkMuted),
-              ),
-          ]),
-          const SizedBox(height: KfSpace.s2),
-          Padding(
-            padding: const EdgeInsets.only(right: KfSpace.s2),
-            child: Row(children: [
-              SizedBox(
-                width: 84,
-                child: TextField(
+          ),
+          if (_lines.length > 1)
+            IconButton(
+              tooltip: 'Retirer la ligne',
+              onPressed: _saving ? null : () => setState(() => _lines.removeAt(index).dispose()),
+              icon: Icon(LucideIcons.trash2, size: 18, color: KfColors.inkMuted),
+            ),
+        ]),
+        const SizedBox(height: KfSpace.s2),
+        Padding(
+          padding: const EdgeInsets.only(right: KfSpace.s2),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            SizedBox(
+              width: 92,
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                _label('Quantité'),
+                TextField(
                   controller: line.quantity,
                   enabled: !_saving,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   onChanged: (_) => setState(() {}),
-                  decoration: const InputDecoration(labelText: 'Qté'),
+                  style: const TextStyle(fontSize: 15),
+                  decoration: _inputDecoration(null),
                 ),
-              ),
-              const SizedBox(width: KfSpace.s2),
-              Expanded(
-                child: TextField(
+              ]),
+            ),
+            const SizedBox(width: KfSpace.s2),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                _label('Prix unitaire'),
+                TextField(
                   controller: line.unitPrice,
                   enabled: !_saving,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   onChanged: (_) => setState(() {}),
-                  decoration: InputDecoration(labelText: 'Prix unitaire', suffixText: _currency),
+                  style: const TextStyle(fontSize: 15),
+                  decoration: _inputDecoration('0,00', suffix: _currency),
                 ),
-              ),
-            ]),
-          ),
-          if (line.catalogPrice != null)
-            Padding(
-              padding: const EdgeInsets.only(top: KfSpace.s1),
-              child: Text('Prix catalogue : ${line.catalogPrice} — saisissez le prix en $_currency.',
-                  style: TextStyle(fontSize: 12, color: KfColors.pending)),
+              ]),
             ),
-          const SizedBox(height: KfSpace.s2),
+          ]),
+        ),
+        if (line.catalogPrice != null)
           Padding(
-            padding: const EdgeInsets.only(right: KfSpace.s2),
-            child: Row(children: [
-              Expanded(
-                child: Text('TVA ${formatDecimal(line.taxRate ?? _defaultTax)} %',
-                    style: TextStyle(fontSize: 13, color: KfColors.inkMuted)),
-              ),
-              KfAmount(lineTotal, _currency, size: AmountSize.sm, alwaysVisible: true),
-            ]),
+            padding: const EdgeInsets.only(top: KfSpace.s2, right: KfSpace.s2),
+            child: Text('Prix catalogue : ${line.catalogPrice} — saisissez le prix en $_currency.',
+                style: TextStyle(fontSize: 12, color: KfColors.pending)),
           ),
-        ]),
-      ),
+        const SizedBox(height: KfSpace.s3),
+        Padding(
+          padding: const EdgeInsets.only(right: KfSpace.s2),
+          child: Row(children: [
+            Expanded(
+              child: Text('TVA ${formatDecimal(line.taxRate ?? _defaultTax)} %', style: TextStyle(fontSize: 13, color: KfColors.inkMuted)),
+            ),
+            KfAmount(lineTotal, _currency, size: AmountSize.sm, alwaysVisible: true),
+          ]),
+        ),
+      ]),
     );
   }
 
   Widget _totalRow(String label, String value) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(children: [
-          Expanded(child: Text(label, style: TextStyle(color: KfColors.inkMuted))),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
+          Expanded(child: Text(label, style: TextStyle(fontSize: 14, color: KfColors.inkMuted))),
+          Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
         ]),
       );
 }

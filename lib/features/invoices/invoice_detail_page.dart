@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/theme.dart';
 import '../../core/api.dart';
-import '../../core/auth.dart';
 import '../../core/format.dart';
 import '../../widgets/common.dart';
 import '../../widgets/dialogs.dart';
+import '../../widgets/kit.dart';
+import '../shell/quick_actions.dart';
 import 'invoice_form_page.dart';
 import 'invoice_rules.dart';
 import 'payment_sheet.dart';
@@ -66,19 +67,6 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
 
   Json get _invoice => Map<String, dynamic>.from(_data!['invoice'] as Map);
   String? get _clientEmail => (_data!['client'] as Map?)?['email'] as String? ?? _invoice['client_email'] as String?;
-
-  Future<void> _share() async {
-    final invoice = _invoice;
-    final link = paymentLink(invoice);
-    if (link == null) return;
-    final company = Auth.to.companyName.value;
-    final amount = formatAmount(numOf(invoice['balance_due']), invoice['currency'] as String);
-    await SharePlus.instance.share(ShareParams(
-      subject: 'Facture ${invoice['number']}',
-      text: 'Bonjour, voici la facture ${invoice['number']}${company.isEmpty ? '' : ' de $company'} : '
-          '$amount à régler. Payez en ligne ici : $link',
-    ));
-  }
 
   Future<void> _sendEmail(String kind) async {
     final invoice = _invoice;
@@ -148,233 +136,221 @@ class _InvoiceDetailPageState extends State<InvoiceDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final data = _data;
+    final invoice = data == null ? null : _invoice;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) Get.back(result: _changed);
       },
       child: Scaffold(
+        backgroundColor: KfColors.surface,
         appBar: AppBar(
-          title: Text(_data == null
-              ? 'Facture'
-              : _invoice['status'] == 'draft'
-                  ? 'Brouillon'
-                  : _invoice['number'] as String? ?? 'Facture'),
+          backgroundColor: KfColors.surface,
+          shape: const Border(),
+          title: Text(invoice == null ? 'Facture' : (invoice['status'] == 'draft' ? 'Brouillon' : invoice['number'] as String? ?? 'Facture')),
           leading: BackButton(onPressed: () => Get.back(result: _changed)),
+          actions: [if (invoice != null) ?_menu(invoice)],
         ),
-        body: _data == null
-            ? (_error.isNotEmpty ? KfErrorView(_error, onRetry: _load) : const KfLoader())
-            : RefreshIndicator(color: KfColors.brand, onRefresh: _load, child: _content()),
-        bottomNavigationBar: _data == null ? null : _actions(),
+        body: data == null
+            ? (_error.isNotEmpty
+                ? KfErrorView(_error, onRetry: _load)
+                : const Padding(padding: EdgeInsets.all(KfSpace.s4), child: KfListSkeleton(rows: 5)))
+            : RefreshIndicator(color: KfColors.brand, onRefresh: _load, child: _content(data, invoice!)),
       ),
     );
   }
 
-  Widget _content() {
-    final data = _data!;
-    final invoice = _invoice;
+  // Menu « … » : actions moins fréquentes
+  Widget? _menu(Json invoice) {
+    final items = <(String, IconData, VoidCallback, bool)>[];
+    if (invoice['status'] == 'draft') {
+      if (canManageDraft(invoice)) items.add(('Supprimer le brouillon', LucideIcons.trash2, _deleteDraft, true));
+    } else {
+      final emailed = (_data!['emails'] as List).cast<Map>().any((e) => e['kind'] == 'invoice' && e['status'] == 'sent');
+      if (canEmail(invoice) && _clientEmail != null) {
+        items.add((emailed ? 'Renvoyer la facture par email' : 'Envoyer la facture par email', LucideIcons.mail, () => _sendEmail('invoice'), false));
+      }
+      if (canCancel(invoice)) items.add(('Annuler la facture', LucideIcons.ban, _cancel, true));
+    }
+    if (items.isEmpty) return null;
+    return PopupMenuButton<int>(
+      tooltip: 'Autres actions',
+      enabled: !_busy,
+      icon: const Icon(LucideIcons.ellipsis),
+      color: KfColors.surfaceRaised,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(KfRadius.lg)),
+      onSelected: (index) => items[index].$3(),
+      itemBuilder: (_) => [
+        for (var i = 0; i < items.length; i++)
+          PopupMenuItem(
+            value: i,
+            child: Row(children: [
+              Icon(items[i].$2, size: 18, color: items[i].$4 ? KfColors.danger : KfColors.inkMuted),
+              const SizedBox(width: KfSpace.s3),
+              Text(items[i].$1, style: TextStyle(color: items[i].$4 ? KfColors.danger : KfColors.ink)),
+            ]),
+          ),
+      ],
+    );
+  }
+
+  Widget _content(Json data, Json invoice) {
     final currency = invoice['currency'] as String;
     final items = (data['items'] as List).cast<Map>();
     final payments = (data['payments'] as List).cast<Map>();
     final client = data['client'] as Map?;
-    final text = Theme.of(context).textTheme;
     final open = isOpen(invoice);
+    final draft = invoice['status'] == 'draft';
+    final total = numOf(invoice['total']);
+    final paid = numOf(invoice['amount_paid']);
+    final overdue = invoice['display_status'] == 'overdue';
+    final link = paymentLink(invoice);
 
-    return ListView(padding: const EdgeInsets.all(KfSpace.s4), children: [
-      // En-tête : client, statut, montant
-      Card(
-        child: Padding(
-          padding: const EdgeInsets.all(KfSpace.s4),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Expanded(child: Text(invoice['client_name'] as String? ?? '—', style: text.titleMedium?.copyWith(fontSize: 17))),
-              statusBadge(invoice['display_status'] as String?),
-            ]),
-            if (client?['email'] != null) Text(client!['email'] as String, style: text.bodySmall),
-            const SizedBox(height: KfSpace.s4),
-            KfAmount(numOf(invoice['total']), currency, size: AmountSize.xl),
-            const SizedBox(height: KfSpace.s2),
-            _infoRow('Émise le', formatDate(invoice['issue_date'] as String?)),
-            _infoRow('Échéance', formatDate(invoice['due_date'] as String?),
-                danger: invoice['display_status'] == 'overdue'),
-            if (numOf(invoice['amount_paid']) > 0) _infoRow('Déjà payé', formatAmount(numOf(invoice['amount_paid']), currency)),
-            if (open) _infoRow('Reste à payer', formatAmount(numOf(invoice['balance_due']), currency), strong: true),
-            if (invoice['schedule_id'] != null || data['source_schedule'] != null)
-              Padding(
-                padding: const EdgeInsets.only(top: KfSpace.s2),
-                child: KfAlert(
-                  'Facture récurrente : la série se gère sur le site Kin Factures.',
-                  tone: AlertTone.pending,
-                ),
-              ),
-          ]),
+    // Actions principales (boutons ronds), selon le statut et les droits
+    final actions = <Widget>[
+      if (draft && canManageDraft(invoice)) KfQuickAction(icon: LucideIcons.pencil, label: 'Modifier', onTap: _busy ? null : _edit),
+      if (open && link != null) KfQuickAction(icon: LucideIcons.share2, label: 'Partager', onTap: _busy ? null : () => shareInvoiceLink(invoice)),
+      if (canRecordPayment(invoice)) KfQuickAction(icon: LucideIcons.banknote, label: 'Encaisser', onTap: _busy ? null : _recordPayment),
+      if (open && canEmail(invoice) && _clientEmail != null)
+        KfQuickAction(icon: LucideIcons.bellRing, label: 'Relancer', onTap: _busy ? null : () => _sendEmail('reminder')),
+      if (link != null && !draft)
+        KfQuickAction(icon: LucideIcons.globe, label: 'Paiement', onTap: () => launchUrl(Uri.parse(link), mode: LaunchMode.externalApplication)),
+    ];
+
+    return ListView(padding: const EdgeInsets.fromLTRB(KfSpace.s4, KfSpace.s2, KfSpace.s4, KfSpace.s8), children: [
+      // Synthèse : client, statut, montant, avancement du paiement, dates
+      Container(
+        padding: const EdgeInsets.all(KfSpace.s4),
+        decoration: BoxDecoration(
+          color: KfColors.surfaceRaised,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: KfColors.line),
         ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            KfAvatar(invoice['client_name'] as String? ?? '?', size: 44),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(invoice['client_name'] as String? ?? '—', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                if (client?['email'] != null)
+                  Text(client!['email'] as String,
+                      maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: KfColors.inkMuted)),
+              ]),
+            ),
+            statusPill(invoice['display_status'] as String?),
+          ]),
+          const SizedBox(height: KfSpace.s6),
+          Text(open ? 'Reste à payer' : 'Montant total', style: TextStyle(fontSize: 13, color: KfColors.inkMuted)),
+          const SizedBox(height: 2),
+          KfAmount(open ? numOf(invoice['balance_due']) : total, currency, size: AmountSize.xl),
+          if (!draft && total > 0 && paid > 0) ...[
+            const SizedBox(height: KfSpace.s3),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: (paid / total).clamp(0, 1).toDouble(),
+                minHeight: 8,
+                backgroundColor: KfColors.surfaceSunken,
+                color: KfColors.brand,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Row(children: [
+              Expanded(
+                child: Text('Payé ${shownAmount(paid, currency)}',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: KfColors.brand)),
+              ),
+              Text('sur ${shownAmount(total, currency)}', style: TextStyle(fontSize: 12, color: KfColors.inkMuted)),
+            ]),
+          ],
+          const SizedBox(height: KfSpace.s4),
+          Divider(height: 1, color: KfColors.line),
+          const SizedBox(height: KfSpace.s3),
+          Row(children: [
+            Expanded(child: _dateBlock('Émise le', formatDate(invoice['issue_date'] as String?))),
+            Expanded(child: _dateBlock('Échéance', formatDate(invoice['due_date'] as String?), danger: overdue)),
+          ]),
+        ]),
       ),
-      const SizedBox(height: KfSpace.s4),
+
+      if (actions.isNotEmpty) ...[
+        const SizedBox(height: KfSpace.s4),
+        Row(children: [for (final action in actions) Expanded(child: action)]),
+      ],
+
+      if (invoice['schedule_id'] != null || data['source_schedule'] != null) ...[
+        const SizedBox(height: KfSpace.s4),
+        const KfAlert('Facture récurrente : la série se gère sur le site Kin Factures.', tone: AlertTone.pending),
+      ],
 
       // Lignes et totaux
-      const KfSectionTitle('Détail'),
-      Card(
-        child: Padding(
+      const KfOverline('Détail'),
+      KfGroup(dividerIndent: KfSpace.s4, children: [
+        for (final item in items)
+          KfRow(
+            title: item['description'] as String,
+            subtitle: '${formatDecimal(numOf(item['quantity']))} × ${formatAmount(numOf(item['unit_price']), currency)}'
+                ' · TVA ${formatDecimal(numOf(item['tax_rate']))} %',
+            trailing: KfAmount(numOf(item['line_subtotal']), currency, size: AmountSize.sm),
+          ),
+        Padding(
           padding: const EdgeInsets.all(KfSpace.s4),
           child: Column(children: [
-            for (final item in items) ...[
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(item['description'] as String, style: const TextStyle(fontWeight: FontWeight.w500)),
-                    Text(
-                      '${formatDecimal(numOf(item['quantity']))} × ${formatAmount(numOf(item['unit_price']), currency)}'
-                      ' · TVA ${formatDecimal(numOf(item['tax_rate']))} %',
-                      style: text.bodySmall,
-                    ),
-                  ]),
-                ),
-                KfAmount(numOf(item['line_subtotal']), currency, size: AmountSize.sm),
-              ]),
-              const Divider(height: KfSpace.s6),
-            ],
-            _infoRow('Sous-total', formatAmount(numOf(invoice['subtotal']), currency)),
-            _infoRow('TVA', formatAmount(numOf(invoice['tax_total']), currency)),
-            _infoRow('Total', formatAmount(numOf(invoice['total']), currency), strong: true),
+            _totalRow('Sous-total', numOf(invoice['subtotal']), currency),
+            _totalRow('TVA', numOf(invoice['tax_total']), currency),
+            const SizedBox(height: KfSpace.s1),
+            Row(children: [
+              const Expanded(child: Text('Total', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700))),
+              KfAmount(total, currency, size: AmountSize.md),
+            ]),
           ]),
         ),
-      ),
+      ]),
 
       // Paiements reçus
       if (payments.isNotEmpty) ...[
-        const SizedBox(height: KfSpace.s4),
-        const KfSectionTitle('Paiements reçus'),
-        Card(
-          child: Column(children: [
-            for (var i = 0; i < payments.length; i++) ...[
-              if (i > 0) const Divider(),
-              ListTile(
-                leading: Icon(Icons.check_circle_outline, color: KfColors.brand),
-                title: Text(paymentMethodLabels[payments[i]['method']] ?? '${payments[i]['method']}',
-                    style: const TextStyle(fontWeight: FontWeight.w500)),
-                subtitle: Text(formatDateTime(payments[i]['paid_at'] as String? ?? payments[i]['created_at'] as String?),
-                    style: text.bodySmall),
-                trailing: KfAmount(numOf(payments[i]['amount']), currency, size: AmountSize.sm, color: KfColors.brand),
+        const KfOverline('Paiements reçus'),
+        KfGroup(children: [
+          for (final payment in payments)
+            KfRow(
+              leading: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(color: KfColors.brandSoft, shape: BoxShape.circle),
+                child: Icon(LucideIcons.arrowDownLeft, size: 20, color: KfColors.brand),
               ),
-            ],
-          ]),
-        ),
+              title: paymentMethodLabels[payment['method']] ?? '${payment['method']}',
+              subtitle: formatDateTime(payment['paid_at'] as String? ?? payment['created_at'] as String?),
+              trailing: KfAmount(numOf(payment['amount']), currency, size: AmountSize.sm, color: KfColors.brand),
+            ),
+        ]),
       ],
 
       if ((invoice['notes'] as String?)?.isNotEmpty == true) ...[
-        const SizedBox(height: KfSpace.s4),
-        const KfSectionTitle('Notes'),
-        Card(child: Padding(padding: const EdgeInsets.all(KfSpace.s4), child: Text(invoice['notes'] as String))),
+        const KfOverline('Notes'),
+        KfGroup(children: [
+          Padding(
+            padding: const EdgeInsets.all(KfSpace.s4),
+            child: Text(invoice['notes'] as String, style: TextStyle(fontSize: 14, color: KfColors.inkSoft)),
+          ),
+        ]),
       ],
-
-      // Lien de paiement
-      if (paymentLink(invoice) != null && open) ...[
-        const SizedBox(height: KfSpace.s4),
-        OutlinedButton.icon(
-          onPressed: () => launchUrl(Uri.parse(paymentLink(invoice)!), mode: LaunchMode.externalApplication),
-          icon: const Icon(Icons.open_in_new, size: 18),
-          label: const Text('Voir la page de paiement'),
-        ),
-      ],
-      const SizedBox(height: KfSpace.s6),
     ]);
   }
 
-  Widget _infoRow(String label, String value, {bool strong = false, bool danger = false}) => Padding(
+  Widget _dateBlock(String label, String value, {bool danger = false}) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: TextStyle(fontSize: 12, color: KfColors.inkMuted)),
+        const SizedBox(height: 2),
+        Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: danger ? KfColors.danger : KfColors.ink)),
+      ]);
+
+  Widget _totalRow(String label, num value, String currency) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(children: [
-          Expanded(child: Text(label, style: TextStyle(color: KfColors.inkMuted))),
-          Text(value,
-              style: TextStyle(
-                fontWeight: strong ? FontWeight.w600 : FontWeight.w500,
-                color: danger ? KfColors.danger : KfColors.ink,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              )),
+          Expanded(child: Text(label, style: TextStyle(fontSize: 14, color: KfColors.inkMuted))),
+          KfAmount(value, currency, size: AmountSize.sm, color: KfColors.inkSoft),
         ]),
       );
-
-  // Barre d'actions en bas, selon le statut et les droits
-  Widget? _actions() {
-    final invoice = _invoice;
-    final buttons = <Widget>[];
-    final more = <(String, IconData, VoidCallback, bool)>[];
-
-    if (invoice['status'] == 'draft') {
-      if (!canManageDraft(invoice)) return null;
-      buttons.add(FilledButton(onPressed: _busy ? null : _edit, child: const Text('Modifier le brouillon')));
-      more.add(('Supprimer le brouillon', Icons.delete_outline, _deleteDraft, true));
-    } else {
-      final open = isOpen(invoice);
-      if (open && paymentLink(invoice) != null) {
-        buttons.add(FilledButton.icon(
-          onPressed: _busy ? null : _share,
-          icon: const Icon(Icons.share_outlined, size: 18),
-          label: const Text('Partager'),
-        ));
-      }
-      if (canRecordPayment(invoice)) {
-        buttons.add(OutlinedButton(onPressed: _busy ? null : _recordPayment, child: const Text('Encaisser')));
-      }
-      if (canEmail(invoice) && _clientEmail != null) {
-        final emailed = (_data!['emails'] as List).cast<Map>().any((e) => e['kind'] == 'invoice' && e['status'] == 'sent');
-        if (open) more.add(('Relancer par email', Icons.notifications_active_outlined, () => _sendEmail('reminder'), false));
-        more.add((emailed ? 'Renvoyer la facture par email' : 'Envoyer la facture par email', Icons.mail_outline,
-            () => _sendEmail('invoice'), false));
-      }
-      if (canCancel(invoice)) more.add(('Annuler la facture', Icons.block, _cancel, true));
-    }
-    if (buttons.isEmpty && more.isEmpty) return null;
-
-    return SafeArea(
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(KfSpace.s4, KfSpace.s3, KfSpace.s4, KfSpace.s3),
-        decoration: BoxDecoration(
-          color: KfColors.surfaceRaised,
-          border: Border(top: BorderSide(color: KfColors.line)),
-        ),
-        child: Row(children: [
-          for (var i = 0; i < buttons.length; i++) ...[
-            if (i > 0) const SizedBox(width: KfSpace.s2),
-            Expanded(child: buttons[i]),
-          ],
-          if (more.isNotEmpty) ...[
-            if (buttons.isNotEmpty) const SizedBox(width: KfSpace.s2),
-            SizedBox(
-              height: 48,
-              width: buttons.isEmpty ? null : 48,
-              child: PopupMenuButton<int>(
-                tooltip: 'Autres actions',
-                enabled: !_busy,
-                color: KfColors.surfaceRaised,
-                onSelected: (index) => more[index].$3(),
-                itemBuilder: (_) => [
-                  for (var i = 0; i < more.length; i++)
-                    PopupMenuItem(
-                      value: i,
-                      child: Row(children: [
-                        Icon(more[i].$2, size: 20, color: more[i].$4 ? KfColors.danger : KfColors.inkMuted),
-                        const SizedBox(width: KfSpace.s3),
-                        Text(more[i].$1, style: TextStyle(color: more[i].$4 ? KfColors.danger : KfColors.ink)),
-                      ]),
-                    ),
-                ],
-                child: Container(
-                  alignment: Alignment.center,
-                  padding: buttons.isEmpty ? const EdgeInsets.symmetric(horizontal: KfSpace.s4) : null,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: KfColors.line),
-                    borderRadius: BorderRadius.circular(KfRadius.md),
-                  ),
-                  child: buttons.isEmpty
-                      ? const Text('Actions', style: TextStyle(fontWeight: FontWeight.w500))
-                      : const Icon(Icons.more_horiz),
-                ),
-              ),
-            ),
-          ],
-        ]),
-      ),
-    );
-  }
 }

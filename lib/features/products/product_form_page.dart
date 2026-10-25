@@ -6,6 +6,7 @@ import '../../core/api.dart';
 import '../../core/format.dart';
 import '../../widgets/common.dart';
 import '../../widgets/dialogs.dart';
+import '../../widgets/kit.dart';
 import '../invoices/invoice_rules.dart';
 
 // Produit ou service : création (POST /products) ou modification (PATCH /products/:id),
@@ -120,99 +121,135 @@ class _ProductFormPageState extends State<ProductFormPage> {
     }
   }
 
-  Widget _segmented(String label, String value, List<(String, String)> options, void Function(String) onChanged) =>
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-        const SizedBox(height: KfSpace.s2),
-        SegmentedButton<String>(
-          segments: [for (final (id, text) in options) ButtonSegment(value: id, label: Text(text))],
-          selected: {value},
-          showSelectedIcon: false,
-          onSelectionChanged: _saving ? null : (selection) => onChanged(selection.first),
-          style: SegmentedButton.styleFrom(
-            selectedBackgroundColor: KfColors.brandSoft,
-            selectedForegroundColor: KfColors.brand,
-            side: BorderSide(color: KfColors.line),
-          ),
-        ),
-      ]);
+  Widget _label(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Text(text, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: KfColors.inkSoft)),
+      );
+
+  Widget _suffix(String text) => Padding(
+        padding: const EdgeInsets.only(right: 14),
+        child: Center(widthFactor: 1, child: Text(text, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: KfColors.inkMuted))),
+      );
 
   @override
   Widget build(BuildContext context) {
+    final active = !_editing || widget.product!['is_active'] != false;
     return Scaffold(
+      backgroundColor: KfColors.surface,
       appBar: AppBar(
+        backgroundColor: KfColors.surface,
+        shape: const Border(),
         title: Text(_editing ? (widget.product!['reference'] as String? ?? 'Produit') : 'Nouveau produit'),
         actions: [
           if (_editing)
             TextButton(
               onPressed: _saving ? null : _toggleActive,
-              style: TextButton.styleFrom(foregroundColor: widget.product!['is_active'] != false ? KfColors.danger : KfColors.brand),
-              child: Text(widget.product!['is_active'] != false ? 'Désactiver' : 'Réactiver'),
+              style: TextButton.styleFrom(foregroundColor: active ? KfColors.danger : KfColors.brand),
+              child: Text(active ? 'Désactiver' : 'Réactiver'),
             ),
         ],
       ),
-      body: ListView(padding: const EdgeInsets.all(KfSpace.s4), children: [
-        if (_editing && widget.product!['is_active'] == false) ...[
+      body: ListView(padding: const EdgeInsets.fromLTRB(KfSpace.s4, 0, KfSpace.s4, KfSpace.s8), children: [
+        if (!active) ...[
+          const SizedBox(height: KfSpace.s2),
           const KfAlert('Produit désactivé : il n’est plus proposé sur les nouvelles factures.', tone: AlertTone.pending),
-          const SizedBox(height: KfSpace.s4),
         ],
-        _segmented('Type', _kind, const [('service', 'Service'), ('produit', 'Produit')], (v) => setState(() => _kind = v)),
-        const SizedBox(height: KfSpace.s4),
-        TextField(
-          controller: _name,
-          enabled: !_saving,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: InputDecoration(labelText: 'Désignation *', errorText: _errors['name']),
-        ),
-        const SizedBox(height: KfSpace.s3),
-        TextField(
-          controller: _description,
-          enabled: !_saving,
-          minLines: 2,
-          maxLines: 4,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(labelText: 'Description'),
-        ),
-        const SizedBox(height: KfSpace.s3),
-        _segmented('Devise du prix', _currency, const [('USD', 'USD'), ('CDF', 'CDF')], (v) => setState(() => _currency = v)),
-        const SizedBox(height: KfSpace.s4),
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Expanded(
-            flex: 3,
-            child: TextField(
-              controller: _price,
-              enabled: !_saving,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(labelText: 'Prix unitaire *', suffixText: _currency, errorText: _errors['unit_price']),
-            ),
+        KfFormSection(
+          title: 'Description',
+          child: KfCard(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              _label('Type'),
+              KfSegmented(
+                options: const [('service', 'Service'), ('produit', 'Produit')],
+                selected: _kind,
+                enabled: !_saving,
+                onChanged: (v) => setState(() => _kind = v),
+              ),
+              const SizedBox(height: KfSpace.s4),
+              KfLabeledField(
+                label: 'Désignation *',
+                controller: _name,
+                hint: 'Ex. Conseil en gestion',
+                enabled: !_saving,
+                errorText: _errors['name'],
+                textCapitalization: TextCapitalization.sentences,
+              ),
+              const SizedBox(height: KfSpace.s4),
+              KfLabeledField(
+                label: 'Description',
+                controller: _description,
+                hint: 'Facultative',
+                enabled: !_saving,
+                minLines: 2,
+                maxLines: 4,
+                keyboardType: TextInputType.multiline,
+                textCapitalization: TextCapitalization.sentences,
+              ),
+            ]),
           ),
-          const SizedBox(width: KfSpace.s2),
-          Expanded(
-            flex: 2,
-            child: TextField(
-              controller: _unit,
-              enabled: !_saving,
-              decoration: InputDecoration(labelText: 'Unité *', hintText: 'heure, jour…', errorText: _errors['unit']),
-            ),
+        ),
+        KfFormSection(
+          title: 'Prix',
+          child: KfCard(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              _label('Devise du prix'),
+              KfSegmented(
+                options: const [('USD', 'USD'), ('CDF', 'CDF')],
+                selected: _currency,
+                enabled: !_saving,
+                onChanged: (v) => setState(() => _currency = v),
+              ),
+              const SizedBox(height: KfSpace.s4),
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(
+                  flex: 3,
+                  child: KfLabeledField(
+                    label: 'Prix unitaire *',
+                    controller: _price,
+                    hint: '0,00',
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    enabled: !_saving,
+                    errorText: _errors['unit_price'],
+                    suffix: _suffix(_currency),
+                  ),
+                ),
+                const SizedBox(width: KfSpace.s3),
+                Expanded(
+                  flex: 2,
+                  child: KfLabeledField(
+                    label: 'Unité *',
+                    controller: _unit,
+                    hint: 'heure, jour…',
+                    enabled: !_saving,
+                    errorText: _errors['unit'],
+                  ),
+                ),
+              ]),
+              const SizedBox(height: KfSpace.s4),
+              KfLabeledField(
+                label: 'TVA',
+                controller: _tax,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                enabled: !_saving,
+                errorText: _errors['tax_rate'],
+                suffix: _suffix('%'),
+              ),
+            ]),
           ),
-        ]),
-        const SizedBox(height: KfSpace.s3),
-        TextField(
-          controller: _tax,
-          enabled: !_saving,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(labelText: 'TVA', suffixText: '%', errorText: _errors['tax_rate']),
         ),
         if (_formError.isNotEmpty) ...[const SizedBox(height: KfSpace.s4), KfAlert(_formError)],
-        const SizedBox(height: KfSpace.s6),
       ]),
-      bottomNavigationBar: SafeArea(
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(KfSpace.s4, KfSpace.s3, KfSpace.s4, KfSpace.s3),
-          decoration: BoxDecoration(color: KfColors.surfaceRaised, border: Border(top: BorderSide(color: KfColors.line))),
-          child: FilledButton(
-            onPressed: _saving ? null : _save,
-            child: Text(_saving ? 'Enregistrement…' : (_editing ? 'Enregistrer' : 'Ajouter le produit')),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(color: KfColors.surfaceRaised, border: Border(top: BorderSide(color: KfColors.line))),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(KfSpace.s4, KfSpace.s3, KfSpace.s4, KfSpace.s3),
+            child: FilledButton(
+              onPressed: _saving ? null : _save,
+              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+              child: Text(_saving ? 'Enregistrement…' : (_editing ? 'Enregistrer' : 'Ajouter le produit')),
+            ),
           ),
         ),
       ),

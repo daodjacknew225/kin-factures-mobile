@@ -5,6 +5,7 @@ import '../../app/theme.dart';
 import '../../core/api.dart';
 import '../../widgets/common.dart';
 import '../../widgets/dialogs.dart';
+import '../../widgets/kit.dart';
 import '../invoices/invoice_rules.dart';
 
 // Fiche client : création (POST /clients) ou modification (PATCH /clients/:id), mêmes champs que le
@@ -78,35 +79,82 @@ class _ClientFormPageState extends State<ClientFormPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(_editing ? 'Modifier le client' : 'Nouveau client')),
-      body: ListView(padding: const EdgeInsets.all(KfSpace.s4), children: [
-        for (final (key, label, keyboard) in _fields) ...[
-          TextField(
-            controller: _controllers[key],
+    Widget field(String key, String label, TextInputType keyboard, {String? hint, bool multiline = false}) => Padding(
+          padding: const EdgeInsets.only(bottom: KfSpace.s4),
+          child: KfLabeledField(
+            label: label,
+            controller: _controllers[key]!,
+            hint: hint,
+            keyboardType: multiline ? TextInputType.multiline : keyboard,
             enabled: !_saving,
-            keyboardType: keyboard,
+            errorText: _errors[key],
+            minLines: multiline ? 2 : null,
+            maxLines: multiline ? 4 : 1,
             textCapitalization: key == 'email' ? TextCapitalization.none : TextCapitalization.sentences,
-            autocorrect: key != 'email',
-            minLines: key == 'notes' || key == 'address' ? 2 : 1,
-            maxLines: key == 'notes' || key == 'address' ? 4 : 1,
             onChanged: (_) {
               if (_errors.containsKey(key)) setState(() => _errors.remove(key));
             },
-            decoration: InputDecoration(labelText: label, errorText: _errors[key]),
           ),
-          const SizedBox(height: KfSpace.s3),
-        ],
-        if (_formError.isNotEmpty) ...[KfAlert(_formError), const SizedBox(height: KfSpace.s3)],
-        const SizedBox(height: KfSpace.s6),
+        );
+
+    return Scaffold(
+      backgroundColor: KfColors.surface,
+      appBar: AppBar(
+        backgroundColor: KfColors.surface,
+        shape: const Border(),
+        title: Text(_editing ? 'Modifier le client' : 'Nouveau client'),
+      ),
+      body: ListView(padding: const EdgeInsets.fromLTRB(KfSpace.s4, 0, KfSpace.s4, KfSpace.s8), children: [
+        KfFormSection(
+          title: 'Identité',
+          child: KfCard(
+            child: Column(children: [
+              field('name', 'Raison sociale ou nom *', TextInputType.text, hint: 'Ex. Société Alpha'),
+              field('contact_name', 'Personne à contacter', TextInputType.name),
+            ]),
+          ),
+        ),
+        KfFormSection(
+          title: 'Coordonnées',
+          child: KfCard(
+            child: Column(children: [
+              field('email', 'Adresse email', TextInputType.emailAddress, hint: 'La facture lui sera envoyée ici'),
+              field('phone', 'Téléphone', TextInputType.phone, hint: '+243 …'),
+              field('address', 'Adresse', TextInputType.streetAddress, multiline: true),
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(child: field('city', 'Ville', TextInputType.text)),
+                const SizedBox(width: KfSpace.s3),
+                Expanded(child: field('country', 'Pays', TextInputType.text)),
+              ]),
+            ]),
+          ),
+        ),
+        KfFormSection(
+          title: 'Administratif',
+          child: KfCard(
+            child: Column(children: [
+              field('rccm', 'RCCM', TextInputType.text),
+              field('nif', 'N° d’impôt (NIF)', TextInputType.text),
+            ]),
+          ),
+        ),
+        KfFormSection(
+          title: 'Notes internes',
+          child: KfCard(child: field('notes', 'Notes (non visibles par le client)', TextInputType.multiline, multiline: true)),
+        ),
+        if (_formError.isNotEmpty) ...[const SizedBox(height: KfSpace.s4), KfAlert(_formError)],
       ]),
-      bottomNavigationBar: SafeArea(
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(KfSpace.s4, KfSpace.s3, KfSpace.s4, KfSpace.s3),
-          decoration: BoxDecoration(color: KfColors.surfaceRaised, border: Border(top: BorderSide(color: KfColors.line))),
-          child: FilledButton(
-            onPressed: _saving ? null : _save,
-            child: Text(_saving ? 'Enregistrement…' : (_editing ? 'Enregistrer' : 'Ajouter le client')),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(color: KfColors.surfaceRaised, border: Border(top: BorderSide(color: KfColors.line))),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(KfSpace.s4, KfSpace.s3, KfSpace.s4, KfSpace.s3),
+            child: FilledButton(
+              onPressed: _saving ? null : _save,
+              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+              child: Text(_saving ? 'Enregistrement…' : (_editing ? 'Enregistrer' : 'Ajouter le client')),
+            ),
           ),
         ),
       ),
