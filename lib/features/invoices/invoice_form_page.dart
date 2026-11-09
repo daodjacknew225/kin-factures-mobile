@@ -144,7 +144,7 @@ class _InvoiceFormPageState extends State<InvoiceFormPage> {
       } else {
         _currency = (_settings['default_currency'] as String?) ?? 'USD';
         _termDays = numOf(_settings['default_payment_terms_days']).toInt();
-        _paymentMethods.addAll(_providers.where((p) => p['is_default'] == true).map((p) => p['id'] as String));
+        _paymentMethods.addAll(_providers.where((p) => p['is_default'] == true && _offeredByPlatform(p)).map((p) => p['id'] as String));
         _lines.add(_Line());
         _clientId = widget.clientId;
       }
@@ -402,7 +402,7 @@ class _InvoiceFormPageState extends State<InvoiceFormPage> {
     final (subtotal, tax, _) = _totals;
     final client = _client;
     final terms = {0, 15, 30, numOf(_settings['default_payment_terms_days']).toInt(), _termDays}.where((d) => d >= 0).toList()..sort();
-    final activeProviders = _providers.where((p) => p['is_active'] == true).toList();
+    final activeProviders = _providers.where(_offeredByPlatform).toList();
 
     return ListView(padding: const EdgeInsets.fromLTRB(KfSpace.s4, 0, KfSpace.s4, KfSpace.s8), children: [
       // Client
@@ -679,3 +679,6 @@ class _InvoiceFormPageState extends State<InvoiceFormPage> {
         ]),
       );
 }
+
+// Moyen proposé : actif pour l'entreprise ET activé par la plateforme (même règle que l'API)
+bool _offeredByPlatform(Map<String, dynamic> p) => p['is_active'] == true && p['available'] == true;
