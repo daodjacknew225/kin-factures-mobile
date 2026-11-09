@@ -55,6 +55,7 @@ final invoiceTabs = [
 const paymentMethodLabels = {
   'paypal': 'PayPal',
   'flexpay': 'FlexPay',
+  'optgateway': 'Mobile Money ou carte (OPTGateway)',
   'maishapay': 'Carte bancaire (MaishaPay)',
   'cash': 'Espèces',
   'bank_transfer': 'Virement bancaire',
