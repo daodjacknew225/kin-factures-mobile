@@ -23,7 +23,7 @@ class DashboardTab extends StatefulWidget {
   State<DashboardTab> createState() => _DashboardTabState();
 }
 
-const _onlineMethods = ['optgateway', 'paypal', 'flexpay', 'maishapay'];
+const _onlineMethods = ['optgateway', 'fondeka', 'paypal', 'flexpay', 'maishapay'];
 
 class _Dashboard {
   _Dashboard(this.currency);

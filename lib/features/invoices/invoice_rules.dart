@@ -56,6 +56,7 @@ const paymentMethodLabels = {
   'paypal': 'PayPal',
   'flexpay': 'FlexPay',
   'optgateway': 'Mobile Money ou carte (OPTGateway)',
+  'fondeka': 'Mobile Money (Fondeka)',
   'maishapay': 'Carte bancaire (MaishaPay)',
   'cash': 'Espèces',
   'bank_transfer': 'Virement bancaire',
