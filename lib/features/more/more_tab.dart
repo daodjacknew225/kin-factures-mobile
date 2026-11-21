@@ -14,6 +14,7 @@ import '../../core/theme_controller.dart';
 import '../../widgets/dialogs.dart';
 import '../../widgets/kit.dart';
 import '../products/products_page.dart';
+import '../wallet/wallet_page.dart';
 import 'account_page.dart';
 
 // Onglet « Plus » : profil, gestion, préférences (apparence, montants masqués), sécurité
@@ -46,7 +47,7 @@ class MoreTab extends StatelessWidget {
             KfGroup(dividerIndent: 64, children: [
               KfSettingRow(icon: LucideIcons.package, title: 'Produits et services', onTap: () => Get.to(() => const ProductsPage())),
               if (auth.can('retraits.demander'))
-                const KfSettingRow(icon: LucideIcons.wallet, title: 'Solde et retraits', subtitle: 'Bientôt dans l’application'),
+                KfSettingRow(icon: LucideIcons.wallet, title: 'Solde et retraits', onTap: () => Get.to(() => const WalletPage())),
             ]),
 
             const KfOverline('Préférences'),
