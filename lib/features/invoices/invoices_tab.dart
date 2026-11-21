@@ -12,9 +12,11 @@ import '../shell/quick_actions.dart';
 import '../shell/shell_page.dart';
 import 'invoice_detail_page.dart';
 import 'invoice_rules.dart';
+import 'pickers.dart';
 
-// Onglet Factures : factures émises par l'entreprise, reste à encaisser, recherche (numéro, client)
-// et filtres par statut (comme la page /factures du site). Tirer vers le bas pour actualiser.
+// Onglet Factures : factures émises par l'entreprise, reste à encaisser, recherche (numéro, client,
+// créateur), période (mois en cours par défaut) et filtres par statut (comme la page /factures du
+// site). Tirer vers le bas pour actualiser.
 class InvoicesTab extends StatefulWidget {
   const InvoicesTab({super.key});
 
@@ -27,6 +29,8 @@ class _InvoicesTabState extends State<InvoicesTab> {
   String _error = '';
   String _search = '';
   String _tab = 'all';
+  // Période : « 2026-11 » (mois en cours par défaut) ou 'all' (toutes les périodes)
+  String _period = currentMonthKey();
 
   @override
   void initState() {
@@ -58,12 +62,31 @@ class _InvoicesTabState extends State<InvoicesTab> {
 
   String _normalize(String text) => text.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
 
+  // Choix de la période : mois en cours, mois ayant des factures, ou toutes les périodes
+  Future<void> _pickPeriod(List<String> months) async {
+    final picked = await pickFromList(
+      title: 'Période',
+      items: [
+        {'id': 'all', 'label': 'Toutes les périodes'},
+        for (final m in months) {'id': m, 'label': monthLabel(m)},
+      ],
+      label: (p) => p['label'] as String,
+      emptyText: 'Aucune période',
+    );
+    if (picked != null) setState(() => _period = picked['id'] as String);
+  }
+
   @override
   Widget build(BuildContext context) {
     final invoices = _invoices;
+    final thisMonth = currentMonthKey();
+    // Le mois en cours est toujours proposé, même sans facture
+    final months = <String>{thisMonth, for (final i in invoices ?? const <Json>[]) (i['issue_date'] as String).substring(0, 7)}.toList()
+      ..sort((a, b) => b.compareTo(a));
     final query = _normalize(_search);
-    final searched = (invoices ?? const <Json>[])
-        .where((i) => query.isEmpty || _normalize('${i['number'] ?? ''} ${i['client_name'] ?? ''}').contains(query))
+    final inPeriod = (invoices ?? const <Json>[]).where((i) => _period == 'all' || (i['issue_date'] as String).startsWith(_period)).toList();
+    final searched = inPeriod
+        .where((i) => query.isEmpty || _normalize('${i['number'] ?? ''} ${i['client_name'] ?? ''} ${i['creator_name'] ?? ''}').contains(query))
         .toList();
     final tab = invoiceTabs.firstWhere((t) => t.id == _tab);
     final rows = searched.where((i) => tab.match(i['display_status'] as String)).toList();
@@ -94,7 +117,19 @@ class _InvoicesTabState extends State<InvoicesTab> {
                     ),
             ),
           ),
-          SliverToBoxAdapter(child: KfSearchField(hint: 'Rechercher un numéro ou un client', onChanged: (v) => setState(() => _search = v))),
+          SliverToBoxAdapter(child: KfSearchField(hint: 'Numéro, client ou créateur', onChanged: (v) => setState(() => _search = v))),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(KfSpace.s4, KfSpace.s3, KfSpace.s4, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: _PeriodButton(
+                  label: _period == 'all' ? 'Toutes les périodes' : monthLabel(_period),
+                  onTap: () => _pickPeriod(months),
+                ),
+              ),
+            ),
+          ),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.only(top: KfSpace.s3, bottom: KfSpace.s3),
@@ -122,7 +157,9 @@ class _InvoicesTabState extends State<InvoicesTab> {
                                 ? 'Aucune facture pour le moment'
                                 : query.isNotEmpty
                                     ? 'Aucun résultat'
-                                    : 'Rien dans cet onglet',
+                                    : inPeriod.isEmpty
+                                        ? (_period == thisMonth ? 'Aucune facture ce mois-ci' : 'Aucune facture sur cette période')
+                                        : 'Rien dans cet onglet',
                             message: invoices.isEmpty
                                 ? 'Créez votre première facture : votre client la reçoit avec un lien de paiement.'
                                 : query.isNotEmpty
@@ -143,6 +180,33 @@ class _InvoicesTabState extends State<InvoicesTab> {
   }
 }
 
+// Période affichée (touchée : choix d'un autre mois)
+class _PeriodButton extends StatelessWidget {
+  const _PeriodButton({required this.label, required this.onTap});
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: KfColors.surfaceSunken,
+        borderRadius: BorderRadius.circular(999),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: KfSpace.s3, vertical: KfSpace.s2),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(LucideIcons.calendar, size: 16, color: KfColors.inkMuted),
+              const SizedBox(width: KfSpace.s2),
+              Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: KfColors.ink)),
+              const SizedBox(width: KfSpace.s1),
+              Icon(LucideIcons.chevronDown, size: 16, color: KfColors.inkMuted),
+            ]),
+          ),
+        ),
+      );
+}
+
 class _InvoiceRow extends StatelessWidget {
   const _InvoiceRow({required this.invoice, required this.onTap});
   final Json invoice;
@@ -160,6 +224,7 @@ class _InvoiceRow extends StatelessWidget {
       else
         'éch. ${formatDate(invoice['due_date'] as String?)}',
       if (invoice['schedule_id'] != null) 'récurrente',
+      if (invoice['creator_name'] != null) 'par ${invoice['creator_name']}',
     ];
     return KfRow(
       leading: KfAvatar(invoice['client_name'] as String? ?? '?'),

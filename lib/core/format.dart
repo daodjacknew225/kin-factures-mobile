@@ -37,6 +37,16 @@ String formatDateTime(String? iso) {
 // Mois en cours : « octobre 2026 »
 String currentMonthLabel([DateTime? now]) => DateFormat('MMMM yyyy', 'fr_FR').format(now ?? DateTime.now());
 
+// Mois en cours au format « 2026-10 » (comme le début de issue_date)
+String currentMonthKey([DateTime? now]) => DateFormat('yyyy-MM').format(now ?? DateTime.now());
+
+// « 2026-10 » → « Octobre 2026 »
+String monthLabel(String yearMonth) {
+  final parts = yearMonth.split('-').map(int.parse).toList();
+  final label = DateFormat('MMMM yyyy', 'fr_FR').format(DateTime(parts[0], parts[1]));
+  return label[0].toUpperCase() + label.substring(1);
+}
+
 // 2 → « 2 factures », 1 → « 1 facture »
 String plural(int count, String singular, [String? pluralForm]) =>
     '$count ${count > 1 ? (pluralForm ?? '${singular}s') : singular}';
